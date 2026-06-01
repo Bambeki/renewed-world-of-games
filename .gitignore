@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Environment files (never commit secrets)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Testing
+coverage/
+
+# Prisma
+backend/prisma/*.db
+backend/prisma/*.db-journal
+
+# Turbo
+.turbo/
+
+# TypeScript
+*.tsbuildinfo
+
+# Docker volumes (local data)
+docker/postgres-data/
+docker/redis-data/
