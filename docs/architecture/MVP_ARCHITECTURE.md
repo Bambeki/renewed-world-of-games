@@ -50,13 +50,13 @@ Renewed-World-of-Games/
 | `REDIS_URL` | backend | Redis connection |
 | `JWT_SECRET` | backend | Token signing (Phase 1) |
 | `NEXT_PUBLIC_API_URL` | frontend | Backend API base URL |
-| `PORT` | backend | API server port (default 3001) |
+| `PORT` | backend | API server port (default 4001) |
 
 ## Ports
 
 | Service | Port |
 |---------|------|
-| Frontend | 3000 |
-| Backend | 3001 |
+| Frontend | 4000 |
+| Backend | 4001 |
 | PostgreSQL | 5432 |
 | Redis | 6379 |

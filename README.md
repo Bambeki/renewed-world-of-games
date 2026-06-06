@@ -70,9 +70,9 @@ npm run dev
 
 | Service | URL |
 |---------|-----|
-| Frontend | http://localhost:3000 |
-| Backend API | http://localhost:3001/api/v1 |
-| Health check | http://localhost:3001/api/v1/health |
+| Frontend | http://localhost:4000 |
+| Backend API | http://localhost:4001/api/v1 |
+| Health check | http://localhost:4001/api/v1/health |
 | Prisma Studio | `npm run db:studio` → http://localhost:5555 |
 
 ## Project Structure

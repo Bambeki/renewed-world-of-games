@@ -1,7 +1,7 @@
 import type { HealthCheckResponse } from '@rwog/shared';
 
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
+  process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4001/api/v1';
 
 /** Calls the backend health endpoint; returns null if unreachable */
 export async function checkBackendHealth(): Promise<HealthCheckResponse | null> {
