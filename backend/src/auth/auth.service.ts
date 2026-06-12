@@ -6,6 +6,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../database/prisma.service';
+import { generateStarterSquad } from '../players/squad-generator';
 
 @Injectable()
 export class AuthService {
@@ -38,12 +39,16 @@ export class AuthService {
         },
       });
 
-      await tx.team.create({
+      const team = await tx.team.create({
         data: {
           ownerId: createdUser.id,
           name: `${username}'s Team`,
           shortName: username.slice(0, 5).toUpperCase(),
         },
+      });
+
+      await tx.player.createMany({
+        data: generateStarterSquad(team.id),
       });
 
       return createdUser;
