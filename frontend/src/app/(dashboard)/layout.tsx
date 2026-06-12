@@ -2,6 +2,7 @@ import Link from 'next/link';
 
 const navItems = [
   { href: '/dashboard', label: 'Overview' },
+  { href: '/squad', label: 'Squad' },
   { href: '/dashboard/team', label: 'Team', disabled: true },
   { href: '/dashboard/players', label: 'Players', disabled: true },
   { href: '/dashboard/matches', label: 'Matches', disabled: true },
