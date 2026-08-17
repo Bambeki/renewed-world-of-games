@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { getApiUrl } from '@/lib/api';
 
@@ -10,7 +11,25 @@ interface SquadPlayer {
   position: string;
   overall: number;
   age: number;
-  nationality: string;
+  nationality: string | null;
+}
+
+function SquadLinkCell({
+  href,
+  children,
+  className = '',
+}: {
+  href: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <td className={className}>
+      <Link href={href} className="block px-4 py-3">
+        {children}
+      </Link>
+    </td>
+  );
 }
 
 export default function SquadPage() {
@@ -84,28 +103,44 @@ export default function SquadPage() {
                 </tr>
               </thead>
               <tbody>
-                {sortedPlayers.map((player) => (
-                  <tr
-                    key={player.id}
-                    className="border-b border-[var(--surface-border)] last:border-0"
-                  >
-                    <td className="px-4 py-3 font-medium">
-                      {player.firstName} {player.lastName}
-                    </td>
-                    <td className="px-4 py-3 text-[var(--muted)]">
-                      {player.position}
-                    </td>
-                    <td className="px-4 py-3 text-[var(--primary)]">
-                      {player.overall}
-                    </td>
-                    <td className="px-4 py-3 text-[var(--muted)]">
-                      {player.age}
-                    </td>
-                    <td className="px-4 py-3 text-[var(--muted)]">
-                      {player.nationality}
-                    </td>
-                  </tr>
-                ))}
+                {sortedPlayers.map((player) => {
+                  const playerHref = `/players/${player.id}`;
+
+                  return (
+                    <tr
+                      key={player.id}
+                      className="border-b border-[var(--surface-border)] transition last:border-0 hover:bg-[var(--background)]"
+                    >
+                      <SquadLinkCell href={playerHref} className="font-medium">
+                        {player.firstName} {player.lastName}
+                      </SquadLinkCell>
+                      <SquadLinkCell
+                        href={playerHref}
+                        className="text-[var(--muted)]"
+                      >
+                        {player.position}
+                      </SquadLinkCell>
+                      <SquadLinkCell
+                        href={playerHref}
+                        className="text-[var(--primary)]"
+                      >
+                        {player.overall}
+                      </SquadLinkCell>
+                      <SquadLinkCell
+                        href={playerHref}
+                        className="text-[var(--muted)]"
+                      >
+                        {player.age}
+                      </SquadLinkCell>
+                      <SquadLinkCell
+                        href={playerHref}
+                        className="text-[var(--muted)]"
+                      >
+                        {player.nationality ?? 'Unknown'}
+                      </SquadLinkCell>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

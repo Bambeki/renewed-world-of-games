@@ -1,7 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 
-const playerListSelect = {
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const playerSelect = {
   id: true,
   firstName: true,
   lastName: true,
@@ -38,8 +41,30 @@ export class PlayersService {
 
     return this.prisma.player.findMany({
       where: { teamId: team.id },
-      select: playerListSelect,
+      select: playerSelect,
       orderBy: { overall: 'desc' },
     });
+  }
+
+  async getMyPlayer(userId: string, playerId: string) {
+    if (!UUID_PATTERN.test(playerId)) {
+      throw new NotFoundException('Player not found');
+    }
+
+    const player = await this.prisma.player.findFirst({
+      where: {
+        id: playerId,
+        team: {
+          ownerId: userId,
+        },
+      },
+      select: playerSelect,
+    });
+
+    if (!player) {
+      throw new NotFoundException('Player not found');
+    }
+
+    return player;
   }
 }
