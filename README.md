@@ -253,3 +253,15 @@ npm run build -w shared
 ## Project Status
 
 Renewed World of Games is an active prototype under development. The current implementation focuses on the football-management MVP, while broader multiplayer, social and AI concepts remain part of the long-term roadmap.
+
+## Investor demo MVP
+
+The `feature/investor-demo-mvp` branch adds starting XI/formation selection, ten-round single-manager league simulation, match reports, fixtures/standings, fixed-price transfers and a responsive club dashboard. Existing auth, squad and player routes are retained.
+
+- [Architecture audit](docs/demo/AUDIT.md)
+- [Setup, demo account preparation and investor walkthrough](docs/demo/INVESTOR_WALKTHROUGH.md)
+- [Verification results and limitations](docs/demo/VERIFICATION.md)
+
+After configuring the backend database: `npm run db:generate`, `npm run db:deploy`, `npm run build`. Prepare the meeting account with `DEMO_PASSWORD` set and `npm run demo:prepare` against the running API. No account or password is silently added to production.
+
+Checks: `npm run typecheck`, `npm run lint`, `npm test`. With a migrated test database and API running, use `npm run test:integration`. With both apps running and Chromium installed (`npx playwright install chromium`), use `npm run test:browser`. Integration/browser tests create isolated accounts; run them against a test environment.
