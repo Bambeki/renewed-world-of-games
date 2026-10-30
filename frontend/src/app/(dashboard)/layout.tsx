@@ -1,49 +1,50 @@
-import Link from 'next/link';
-
-const navItems = [
-  { href: '/dashboard', label: 'Overview' },
-  { href: '/squad', label: 'Squad' },
-  { href: '/dashboard/team', label: 'Team', disabled: true },
-  { href: '/dashboard/players', label: 'Players', disabled: true },
-  { href: '/dashboard/matches', label: 'Matches', disabled: true },
-  { href: '/dashboard/league', label: 'League', disabled: true },
-  { href: '/dashboard/transfers', label: 'Transfers', disabled: true },
-  { href: '/dashboard/chat', label: 'Chat', disabled: true },
+"use client";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+const nav = [
+  ["/dashboard", "Overview"],
+  ["/squad", "Squad"],
+  ["/lineup", "Starting XI"],
+  ["/matches", "Matches"],
+  ["/league", "League"],
+  ["/transfers", "Transfers"],
+  ["/team", "Club settings"],
 ];
-
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const path = usePathname(),
+    router = useRouter();
   return (
-    <div className="flex min-h-screen">
-      <aside className="w-56 shrink-0 border-r border-[var(--surface-border)] bg-[var(--surface)] p-4">
-        <Link href="/" className="mb-6 block text-sm font-bold text-[var(--primary)]">
-          RWOG
+    <div className="dashboard-shell">
+      <aside className="sidebar">
+        <Link href="/dashboard" className="brand">
+          RWOG<span>MANAGER OFFICE</span>
         </Link>
-        <nav className="space-y-1">
-          {navItems.map((item) =>
-            item.disabled ? (
-              <span
-                key={item.href}
-                className="block rounded-lg px-3 py-2 text-sm text-[var(--muted)] opacity-50"
-              >
-                {item.label}
-              </span>
-            ) : (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="block rounded-lg px-3 py-2 text-sm transition hover:bg-[var(--background)]"
-              >
-                {item.label}
-              </Link>
-            ),
-          )}
+        <nav aria-label="Club navigation">
+          {nav.map(([href, label]) => (
+            <Link
+              key={href}
+              href={href}
+              aria-current={path === href ? "page" : undefined}
+            >
+              {label}
+            </Link>
+          ))}
         </nav>
+        <button
+          className="secondary"
+          onClick={() => {
+            localStorage.removeItem("rwog_token");
+            router.replace("/login");
+          }}
+        >
+          Log out
+        </button>
       </aside>
-      <main className="flex-1 p-8">{children}</main>
+      <main className="dashboard-main">{children}</main>
     </div>
   );
 }

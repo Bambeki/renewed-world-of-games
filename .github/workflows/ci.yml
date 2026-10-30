@@ -2,41 +2,55 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, feature/investor-demo-mvp]
   pull_request:
     branches: [main, develop]
 
 jobs:
   check:
-    runs-on: ubuntu-latest
-
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: rwog
+          POSTGRES_PASSWORD: rwog_test_password
+          POSTGRES_DB: rwog_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U rwog -d rwog_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://rwog:rwog_test_password@localhost:5432/rwog_test?schema=public
+      JWT_SECRET: ci-test-only-secret-not-for-deployment
+      JWT_ACCESS_EXPIRES_IN: 2h
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Generate Prisma client
-        run: npm run db:generate -w backend
-        env:
-          DATABASE_URL: postgresql://rwog:rwog_dev_password@localhost:5432/renewed_world_of_games?schema=public
-
-      - name: Build shared package
-        run: npm run build -w shared
-
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Lint frontend
-        run: npm run lint -w frontend
-
-      - name: Build backend
-        run: npm run build -w backend
-
-      - name: Build frontend
-        run: npm run build -w frontend
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run db:deploy
+      - run: npm run build -w shared
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build -w frontend
+      - run: npx playwright install --with-deps chromium
+      - name: Verify API and browser journeys on PostgreSQL
+        run: |
+          npm run start -w backend > /tmp/rwog-api.log 2>&1 &
+          npm run start -w frontend -- --hostname 127.0.0.1 > /tmp/rwog-web.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://localhost:4001/api/v1/health && curl --fail --silent http://localhost:4000/login > /dev/null; then break; fi
+            sleep 1
+          done
+          npm run test:integration
+          npm run test:browser
+      - name: Server logs on failure
+        if: failure()
+        run: cat /tmp/rwog-api.log /tmp/rwog-web.log 2>/dev/null || true

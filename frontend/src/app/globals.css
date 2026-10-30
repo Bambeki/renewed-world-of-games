@@ -1,4 +1,4 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
 :root {
   --background: #0a0f1a;
@@ -13,5 +13,362 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+}
+
+/* Shared investor-demo manager interface */
+.dashboard-shell {
+  display: flex;
+  min-height: 100vh;
+}
+.sidebar {
+  width: 210px;
+  flex-shrink: 0;
+  padding: 28px 18px;
+  background: var(--surface);
+  border-right: 1px solid var(--surface-border);
+}
+.brand {
+  display: block;
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--primary);
+  margin-bottom: 30px;
+}
+.brand span {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--muted);
+}
+.sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 30px;
+}
+.sidebar nav a {
+  padding: 11px 12px;
+  border-radius: 8px;
+  color: var(--muted);
+}
+.sidebar nav a:hover,
+.sidebar nav a[aria-current] {
+  background: var(--background);
+  color: var(--primary);
+}
+.dashboard-main {
+  min-width: 0;
+  flex: 1;
+  padding: 36px;
+  max-width: 1500px;
+  margin: auto;
+}
+.game h1 {
+  font-size: clamp(25px, 4vw, 36px);
+  font-weight: 800;
+  line-height: 1.2;
+}
+.game h2 {
+  font-size: 21px;
+  font-weight: 700;
+  margin: 8px 0 12px;
+}
+.game h3 {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 8px 0;
+}
+.game p {
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 10px 0 18px;
+}
+.club-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+.game .eyebrow {
+  font-size: 10px;
+  letter-spacing: 1.8px;
+  color: var(--primary);
+  font-weight: 700;
+}
+.badge {
+  font-size: 11px;
+  border: 1px solid var(--surface-border);
+  border-radius: 30px;
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.stats article,
+.game section,
+.market-grid article {
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: 14px;
+  padding: 22px;
+}
+.stats small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+.stats strong {
+  display: block;
+  font-size: 24px;
+  margin-top: 8px;
+}
+.stats strong small {
+  font-size: 11px;
+  font-weight: 400;
+}
+.game section {
+  margin-bottom: 20px;
+}
+.two-col {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 20px;
+}
+.game a:not(.button) {
+  color: var(--primary);
+}
+.game button,
+.button,
+.sidebar button {
+  display: inline-block;
+  border-radius: 7px;
+  padding: 10px 16px;
+  background: var(--primary);
+  color: #06170c;
+  font-weight: 650;
+  font-size: 13px;
+  cursor: pointer;
+  margin: 4px 0;
+}
+.game button:hover,
+.button:hover {
+  filter: brightness(1.12);
+}
+.game button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.game button.secondary,
+.secondary,
+.sidebar button {
+  background: transparent;
+  color: var(--foreground);
+  border: 1px solid var(--surface-border);
+}
+.inline-link {
+  margin-left: 16px;
+}
+.game select,
+.game input {
+  display: block;
+  width: 100%;
+  background: var(--background);
+  border: 1px solid var(--surface-border);
+  padding: 12px;
+  border-radius: 7px;
+  margin: 6px 0 12px;
+  color: var(--foreground);
+}
+.game label {
+  display: block;
+  font-size: 13px;
+}
+.game label > select[aria-label="Formation"] {
+  max-width: 230px;
+}
+.lineup-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 22px 0;
+  background: linear-gradient(130deg, #0c3225, #101e2b);
+  border: 1px solid #285843;
+  border-radius: 12px;
+  padding: 20px;
+}
+.player-slot {
+  min-width: 0;
+}
+.player-slot a {
+  font-size: 11px;
+}
+.table-scroll {
+  overflow-x: auto;
+}
+.game table {
+  width: 100%;
+  font-size: 13px;
+  text-align: left;
+  border-collapse: collapse;
+  white-space: nowrap;
+}
+.game th,
+.game td {
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--surface-border);
+}
+.game th {
+  color: var(--muted);
+  font-weight: 500;
+}
+.your-club {
+  background: #163325;
+  color: #7ee8ac;
+}
+.fixtures article {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--surface-border);
+  font-size: 13px;
+}
+.fixtures small {
+  color: var(--muted);
+}
+.fixtures b {
+  padding: 0 10px;
+  color: var(--primary);
+}
+.market-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+.market-grid article {
+  background: var(--background);
+  padding: 18px;
+}
+.market-grid small {
+  color: var(--primary);
+}
+.game .alert {
+  padding: 14px;
+  border: 1px solid #c65959;
+  border-radius: 8px;
+  color: #ffb4b4;
+}
+.game .success {
+  padding: 14px;
+  border: 1px solid #2c7250;
+  border-radius: 8px;
+  color: #8de6af;
+}
+.game .hint {
+  font-size: 12px;
+}
+.game .report {
+  border-color: var(--primary);
+}
+.club-form {
+  max-width: 500px;
+}
+.game :focus-visible,
+.sidebar :focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+@media (max-width: 1100px) {
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .two-col {
+    grid-template-columns: 1fr;
+  }
+  .market-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .lineup-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 700px) {
+  .dashboard-shell {
+    display: block;
+  }
+  .sidebar {
+    width: 100%;
+    padding: 16px;
+    border-right: 0;
+    border-bottom: 1px solid var(--surface-border);
+  }
+  .brand {
+    margin: 0 0 12px;
+    font-size: 22px;
+  }
+  .brand span {
+    display: inline;
+    margin-left: 12px;
+  }
+  .sidebar nav {
+    flex-direction: row;
+    overflow-x: auto;
+    margin: 0;
+    gap: 3px;
+  }
+  .sidebar nav a {
+    white-space: nowrap;
+    padding: 8px;
+    font-size: 12px;
+  }
+  .sidebar > button {
+    margin-top: 12px;
+    padding: 6px 12px;
+  }
+  .dashboard-main {
+    padding: 20px 14px;
+  }
+  .club-header {
+    display: block;
+  }
+  .badge {
+    display: inline-block;
+    margin-bottom: 10px;
+  }
+  .stats {
+    gap: 8px;
+  }
+  .stats article,
+  .game section {
+    padding: 16px;
+  }
+  .stats strong {
+    font-size: 21px;
+  }
+  .lineup-grid,
+  .market-grid {
+    grid-template-columns: 1fr;
+  }
+  .fixtures article {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .fixtures article span {
+    flex: 1;
+    min-width: 180px;
+  }
+  .game th,
+  .game td {
+    padding: 10px 8px;
+  }
 }

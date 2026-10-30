@@ -1,47 +1,22 @@
 import Link from 'next/link';
-import { checkBackendHealth } from '@/lib/api';
 
-export default async function HomePage() {
-  const health = await checkBackendHealth();
-
+export default function HomePage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center px-4">
-      <div className="w-full max-w-lg rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] p-8 text-center">
-        <p className="mb-2 text-sm font-medium uppercase tracking-widest text-[var(--primary)]">
-          Phase 0
-        </p>
-        <h1 className="mb-4 text-3xl font-bold">Renewed World of Games</h1>
-        <p className="mb-8 text-[var(--muted)]">
-          Multiplayer football management — foundation setup complete.
-        </p>
-
-        <div className="mb-8 rounded-lg border border-[var(--surface-border)] bg-[var(--background)] p-4 text-left text-sm">
-          <p className="mb-1 font-medium">Backend status</p>
-          {health ? (
-            <p className="text-[var(--primary)]">
-              Connected — database: {health.services.database}
-            </p>
-          ) : (
-            <p className="text-red-400">
-              Unreachable — start Docker and the backend server
-            </p>
-          )}
+    <main className="flex min-h-screen items-center justify-center px-5 py-12">
+      <div className="w-full max-w-3xl rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] p-8 sm:p-14">
+        <p className="mb-6 text-xs font-bold uppercase tracking-[0.2em] text-[var(--primary)]">Renewed World of Games</p>
+        <h1 className="mb-6 text-4xl font-extrabold leading-tight sm:text-6xl">Build your club.<br />Write your season.</h1>
+        <p className="mb-8 max-w-xl text-lg leading-relaxed text-[var(--muted)]">Take charge of a football team. Select your starting XI, compete in the Founders League, and find the next player who can make the difference.</p>
+        <div className="mb-9 grid gap-4 text-sm sm:grid-cols-3">
+          <div className="rounded-xl border border-[var(--surface-border)] p-4"><strong className="text-[var(--primary)]">Your squad</strong><p className="mt-2 text-[var(--muted)]">18 players. Three formations. Your selection.</p></div>
+          <div className="rounded-xl border border-[var(--surface-border)] p-4"><strong className="text-[var(--primary)]">Your league</strong><p className="mt-2 text-[var(--muted)]">Six clubs. Ten matchdays. One final table.</p></div>
+          <div className="rounded-xl border border-[var(--surface-border)] p-4"><strong className="text-[var(--primary)]">Your decisions</strong><p className="mt-2 text-[var(--muted)]">Manage your budget and strengthen your team.</p></div>
         </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <Link
-            href="/login"
-            className="rounded-lg bg-[var(--primary)] px-6 py-2.5 font-medium text-black transition hover:bg-[var(--primary-dark)]"
-          >
-            Log in
-          </Link>
-          <Link
-            href="/register"
-            className="rounded-lg border border-[var(--surface-border)] px-6 py-2.5 font-medium transition hover:border-[var(--primary)]"
-          >
-            Register
-          </Link>
+        <div className="flex flex-wrap gap-3">
+          <Link href="/login" className="rounded-lg bg-[var(--primary)] px-7 py-3 font-semibold text-black hover:bg-[var(--primary-dark)]">Log in</Link>
+          <Link href="/register" className="rounded-lg border border-[var(--surface-border)] px-7 py-3 font-semibold hover:border-[var(--primary)]">Create your club</Link>
         </div>
+        <p className="mt-7 text-xs text-[var(--muted)]">Playable MVP · Single-manager seasons against fictional clubs</p>
       </div>
     </main>
   );
