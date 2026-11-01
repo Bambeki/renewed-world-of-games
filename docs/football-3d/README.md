@@ -2,7 +2,7 @@
 
 ## Try it
 
-Update `feature/football-3d`, run `npm ci` (new Three.js dependencies), then `npm run dev`. Leave Docker/PostgreSQL running. No database migration/reset is needed. Sign in, save a valid starting XI, open **Matches → Play 3D match → Start 3D match**. Select **Close to the action** to inspect the player models, or **Whole pitch** to see the formation. Fullscreen is optional and browser-dependent.
+Update `feature/football-3d`, run `npm ci` (new Three.js dependencies), `npm run db:generate` (regenerate the Prisma client after the clean install), then `npm run dev`. Leave Docker/PostgreSQL running. No database migration/reset is needed. Sign in, save a valid starting XI, open **Matches → Play 3D match → Start 3D match**. Select **Close to the action** to inspect the player models, or **Whole pitch** to see the formation. Fullscreen is optional and browser-dependent.
 
 The home side uses all eleven saved XI names and overall ratings in the saved 4-4-2, 4-3-3 or 3-5-2 shape. Ratings currently affect the controlled player’s movement pace. Away players are generic. Three active minutes correspond to 90 match minutes, plus goal/restart pauses. The new mode is an exhibition: browser scores do not change persistent league fixtures, standings, money or transfers. Navigation/reload discards this match.
 
