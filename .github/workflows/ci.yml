@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, develop, feature/investor-demo-mvp]
+    branches: [main, develop, feature/investor-demo-mvp, feature/ludo-local]
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, feature/investor-demo-mvp]
 
 jobs:
   check:
@@ -51,6 +51,7 @@ jobs:
           done
           npm run test:integration
           npm run test:browser
+          npm run test:ludo:browser
       - name: Server logs on failure
         if: failure()
         run: cat /tmp/rwog-api.log /tmp/rwog-web.log 2>/dev/null || true
