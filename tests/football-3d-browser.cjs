@@ -42,6 +42,8 @@ const { chromium, expect } = require("@playwright/test");
         },
       }).then((r) => r.json()),
     );
+    // Install the synthetic clock before the renderer starts its RAF loop.
+    await page.clock.install();
     await page
       .getByRole("button", { name: "Play 3D match", exact: true })
       .click();
@@ -58,7 +60,6 @@ const { chromium, expect } = require("@playwright/test");
       match.getByRole("button", { name: "Start 3D match", exact: true }),
     ).toBeEnabled({ timeout: 30000 });
     await expect(canvas).toHaveCount(1);
-    await page.clock.install();
     await match
       .getByRole("button", { name: "Start 3D match", exact: true })
       .click();

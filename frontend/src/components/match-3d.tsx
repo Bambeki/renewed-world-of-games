@@ -147,7 +147,9 @@ export default function Match3D({
         }
         const tick = (now: number) => {
           if (stopped || !scene) return;
-          const dt = previous ? Math.min((now - previous) / 1000, 0.1) : 0;
+          const dt = previous
+            ? Math.max(0, Math.min((now - previous) / 1000, 0.1))
+            : 0;
           previous = now;
           if (runningRef.current) {
             let pad: Gamepad | null = null;
