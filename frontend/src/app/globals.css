@@ -68,6 +68,7 @@ body {
   margin: auto;
 }
 .game h1 {
+  overflow-wrap: anywhere;
   font-size: clamp(25px, 4vw, 36px);
   font-weight: 800;
   line-height: 1.2;
@@ -89,6 +90,7 @@ body {
 }
 .club-header {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 18px;
   align-items: flex-start;

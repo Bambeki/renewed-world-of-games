@@ -2,7 +2,7 @@
   "name": "renewed-world-of-games",
   "version": "0.1.0",
   "private": true,
-  "description": "Renewed World of Games \u2014 multiplayer football management platform",
+  "description": "Renewed World of Games — multiplayer football management platform",
   "workspaces": [
     "frontend",
     "backend",
@@ -20,12 +20,13 @@
     "docker:up": "docker compose -f docker/docker-compose.yml up -d",
     "docker:down": "docker compose -f docker/docker-compose.yml down",
     "docker:logs": "docker compose -f docker/docker-compose.yml logs -f",
-    "test": "npm run build -w shared && npm run build -w backend && node --test backend/test/*.test.cjs shared/test/*.test.cjs",
+    "test": "npm run build -w shared && npm run build -w backend && node --test backend/test/*.test.cjs shared/test/*.test.cjs && node --test frontend/test/*.test.cjs",
     "test:integration": "node --test backend/test/journey.integration.cjs",
     "demo:prepare": "node scripts/prepare-demo.mjs",
     "db:deploy": "npm exec -w backend -- prisma migrate deploy",
     "test:browser": "node tests/browser-journey.cjs",
-    "test:ludo:browser": "node tests/ludo-browser.cjs"
+    "test:ludo:browser": "node tests/ludo-browser.cjs",
+    "test:arcade:browser": "node tests/arcade-browser.cjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",

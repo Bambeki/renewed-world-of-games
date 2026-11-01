@@ -54,7 +54,7 @@ const { chromium, expect } = require("@playwright/test");
   );
   await page.getByRole("link", { name: "Matches", exact: true }).click();
   await page
-    .getByRole("button", { name: "Play matchday 1", exact: true })
+    .getByRole("button", { name: "Simulate league matchday 1", exact: true })
     .click();
   await expect(page.getByRole("status")).toContainText("Matchday complete");
   await expect(
