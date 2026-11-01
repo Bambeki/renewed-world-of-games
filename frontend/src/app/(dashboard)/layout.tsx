@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 const nav = [
   ["/dashboard", "Overview"],
+  ["/ludo", "Ludo"],
   ["/squad", "Squad"],
   ["/lineup", "Starting XI"],
   ["/matches", "Matches"],
@@ -21,7 +22,7 @@ export default function DashboardLayout({
     <div className="dashboard-shell">
       <aside className="sidebar">
         <Link href="/dashboard" className="brand">
-          RWOG<span>MANAGER OFFICE</span>
+          RWOG<span>PLAY & MANAGE</span>
         </Link>
         <nav aria-label="Club navigation">
           {nav.map(([href, label]) => (

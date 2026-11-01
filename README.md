@@ -265,3 +265,7 @@ The `feature/investor-demo-mvp` branch adds starting XI/formation selection, ten
 After configuring the backend database: `npm run db:generate`, `npm run db:deploy`, `npm run build`. Prepare the meeting account with `DEMO_PASSWORD` set and `npm run demo:prepare` against the running API. No account or password is silently added to production.
 
 Checks: `npm run typecheck`, `npm run lint`, `npm test`. With a migrated test database and API running, use `npm run test:integration`. With both apps running and Chromium installed (`npx playwright install chromium`), use `npm run test:browser`. Integration/browser tests create isolated accounts; run them against a test environment.
+
+## Ludo
+
+The `feature/ludo-local` branch adds a second game at `/ludo`: two to four people playing on one device, with dice, captures, safe squares, home lanes, winner/rematch and browser-saved progress. Use **Ludo** in the navigation or **Play Ludo with friends** on the home page. [Rules, scope and verification commands](docs/ludo/README.md). Online rooms and bots are not included.

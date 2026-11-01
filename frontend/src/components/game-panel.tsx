@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import MatchArcade from "./match-arcade";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { formations, Formation, GameView } from "@rwog/shared";
@@ -18,6 +19,7 @@ export default function GamePanel({ mode = "overview" }: { mode?: string }) {
   const [busy, setBusy] = useState(false);
   const [formation, setFormation] = useState<Formation>("4-4-2");
   const [lineup, setLineup] = useState<string[]>([]);
+  const [arcadeOpen, setArcadeOpen] = useState(false);
   const [resultId, setResultId] = useState<number | null>(null);
   async function request(path = "", body?: object, method = "POST") {
     const token = localStorage.getItem("rwog_token");
@@ -201,6 +203,30 @@ export default function GamePanel({ mode = "overview" }: { mode?: string }) {
           </strong>
         </article>
       </div>
+      {mode === "matches" && (
+        <section>
+          <p className="eyebrow">TAKE CONTROL</p>
+          <h2>Play football on the pitch</h2>
+          <p>
+            Move, pass and shoot in a two-minute 2D exhibition against the
+            computer. Exhibition scores stay separate from your league season.
+          </p>
+          <button onClick={() => setArcadeOpen(true)} disabled={arcadeOpen}>
+            Play live exhibition
+          </button>
+        </section>
+      )}
+      {arcadeOpen && (
+        <MatchArcade
+          home={team.name}
+          away={
+            next
+              ? club(next.home === team.id ? next.away : next.home)
+              : "RWOG Visitors"
+          }
+          onClose={() => setArcadeOpen(false)}
+        />
+      )}
       {result && (
         <section className="report" role="region" aria-label="Match report">
           <button className="secondary" onClick={() => setResultId(null)}>
@@ -350,10 +376,11 @@ export default function GamePanel({ mode = "overview" }: { mode?: string }) {
       )}
       {mode === "matches" && (
         <section>
-          <h2>Match centre</h2>
+          <h2>League simulation</h2>
           <p>
-            Simulation uses the saved starting XI’s average rating, opponent
-            strength, home advantage, and random scoring chances.
+            Instant league simulation uses the saved starting XI’s average
+            rating, opponent strength, home advantage, and random scoring
+            chances.
           </p>
           {next ? (
             <>
@@ -365,7 +392,7 @@ export default function GamePanel({ mode = "overview" }: { mode?: string }) {
                 starters
               </p>
               <button disabled={busy} onClick={() => act("/play")}>
-                {busy ? "Simulating…" : `Play matchday ${next.round}`}
+                {busy ? "Simulating…" : `Simulate league matchday ${next.round}`}
               </button>
             </>
           ) : (

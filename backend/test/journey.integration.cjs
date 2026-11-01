@@ -200,3 +200,81 @@ test("authenticated manager journey, persistence, isolation and invalid mutation
   assert.ok(originalIds.every((id) => g.players.some((p) => p.id === id)));
   assert.deepEqual((await req("/game", token)).data.season, g.season);
 });
+
+test("empty legacy clubs recover once without resetting club or season", async () => {
+  const { PrismaClient } = require("@prisma/client");
+  const db = new PrismaClient();
+  try {
+    for (const existingSeason of [false, true]) {
+      const token = await account(`legacy${existingSeason}`);
+      const userId = JSON.parse(
+        Buffer.from(token.split(".")[1], "base64url"),
+      ).sub;
+      const team = await db.team.findUniqueOrThrow({
+        where: { ownerId: userId },
+      });
+      let before;
+      if (existingSeason) before = (await req("/game", token)).data.season;
+      await db.player.deleteMany({ where: { teamId: team.id } });
+      const responses = await Promise.all([
+        req("/game", token),
+        req("/game", token),
+      ]);
+      for (const response of responses) {
+        assert.equal(response.status, 200);
+        assert.equal(response.data.players.length, 18);
+        assert.equal(response.data.season.lineup.length, 11);
+        assert.equal(response.data.team.name, team.name);
+        assert.equal(response.data.team.budget, team.budget);
+        if (before) {
+          assert.deepEqual(response.data.season.fixtures, before.fixtures);
+          assert.deepEqual(response.data.season.market, before.market);
+          assert.equal(response.data.season.revision, before.revision + 1);
+        }
+      }
+      const recovered = responses[0].data;
+      const reload = (await req("/game", token)).data;
+      assert.deepEqual(reload.season, recovered.season);
+      assert.deepEqual(
+        reload.players.map((p) => p.id).sort(),
+        recovered.players.map((p) => p.id).sort(),
+      );
+      assert.equal(await db.player.count({ where: { teamId: team.id } }), 18);
+      assert.equal(
+        (await req("/players", token)).data.filter((p) => p.isStarter).length,
+        11,
+      );
+      assert.equal(
+        (
+          await req("/game/play", token, {
+            revision: recovered.season.revision,
+          })
+        ).status,
+        201,
+      );
+    }
+    const token = await account("preserve");
+    const initial = (await req("/game", token)).data;
+    const keep = initial.players[0].id;
+    await db.player.deleteMany({
+      where: { teamId: initial.team.id, id: { not: keep } },
+    });
+    assert.deepEqual(
+      (await req("/game", token)).data.players.map((p) => p.id),
+      [keep],
+    );
+    await db.player.deleteMany({ where: { teamId: initial.team.id } });
+    const playedSeason = initial.season;
+    playedSeason.fixtures[0].homeGoals = 1;
+    playedSeason.fixtures[0].awayGoals = 0;
+    await db.gameState.update({
+      where: { teamId: initial.team.id },
+      data: { payload: playedSeason },
+    });
+    const played = (await req("/game", token)).data;
+    assert.equal(played.players.length, 0);
+    assert.deepEqual(played.season, playedSeason);
+  } finally {
+    await db.$disconnect();
+  }
+});
