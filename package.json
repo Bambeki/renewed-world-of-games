@@ -26,7 +26,8 @@
     "db:deploy": "npm exec -w backend -- prisma migrate deploy",
     "test:browser": "node tests/browser-journey.cjs",
     "test:ludo:browser": "node tests/ludo-browser.cjs",
-    "test:arcade:browser": "node tests/arcade-browser.cjs"
+    "test:arcade:browser": "node tests/arcade-browser.cjs",
+    "test:3d:browser": "node tests/football-3d-browser.cjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
