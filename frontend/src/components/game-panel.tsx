@@ -1,5 +1,10 @@
 "use client";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+const Match3D = dynamic(() => import("./match-3d"), {
+  ssr: false,
+  loading: () => <p>Loading 3D football…</p>,
+});
 import MatchArcade from "./match-arcade";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -19,6 +24,7 @@ export default function GamePanel({ mode = "overview" }: { mode?: string }) {
   const [busy, setBusy] = useState(false);
   const [formation, setFormation] = useState<Formation>("4-4-2");
   const [lineup, setLineup] = useState<string[]>([]);
+  const [threeOpen, setThreeOpen] = useState(false);
   const [arcadeOpen, setArcadeOpen] = useState(false);
   const [resultId, setResultId] = useState<number | null>(null);
   async function request(path = "", body?: object, method = "POST") {
@@ -206,15 +212,51 @@ export default function GamePanel({ mode = "overview" }: { mode?: string }) {
       {mode === "matches" && (
         <section>
           <p className="eyebrow">TAKE CONTROL</p>
-          <h2>Play football on the pitch</h2>
+          <h2>Play 3D football</h2>
           <p>
-            Move, pass and shoot in a two-minute 2D exhibition against the
-            computer. Exhibition scores stay separate from your league season.
+            Take your starting XI onto a 3D pitch. Sprint, dribble, pass, tackle
+            and shoot against the computer. Exhibition scores stay separate from
+            your league season.
           </p>
-          <button onClick={() => setArcadeOpen(true)} disabled={arcadeOpen}>
+          <button
+            onClick={() => setThreeOpen(true)}
+            disabled={threeOpen || season.lineup.length !== 11}
+          >
+            Play 3D match
+          </button>{" "}
+          <button
+            className="secondary"
+            onClick={() => setArcadeOpen(true)}
+            disabled={arcadeOpen}
+          >
             Play live exhibition
           </button>
+          <p>
+            <small>
+              “Play live exhibition” opens the simple 2D mode. “Play 3D match”
+              opens the new 11-a-side prototype. Requires a saved XI.
+            </small>
+          </p>
         </section>
+      )}
+      {threeOpen && (
+        <Match3D
+          home={team.name}
+          away={
+            next
+              ? club(next.home === team.id ? next.away : next.home)
+              : "RWOG Visitors"
+          }
+          formation={season.formation}
+          roster={season.lineup
+            .map((id) => players.find((p) => p.id === id))
+            .filter((p) => p !== undefined)
+            .map((p) => ({
+              name: `${p.firstName} ${p.lastName}`,
+              overall: p.overall,
+            }))}
+          onClose={() => setThreeOpen(false)}
+        />
       )}
       {arcadeOpen && (
         <MatchArcade
@@ -392,7 +434,9 @@ export default function GamePanel({ mode = "overview" }: { mode?: string }) {
                 starters
               </p>
               <button disabled={busy} onClick={() => act("/play")}>
-                {busy ? "Simulating…" : `Simulate league matchday ${next.round}`}
+                {busy
+                  ? "Simulating…"
+                  : `Simulate league matchday ${next.round}`}
               </button>
             </>
           ) : (
