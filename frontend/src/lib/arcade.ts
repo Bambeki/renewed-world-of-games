@@ -56,6 +56,8 @@ export function createArcade(): ArcadeState {
       number: i + 1,
     })),
   );
+  // Give the kickoff taker space outside the opposing centre circle.
+  players[11].x = 61;
   return {
     players,
     selected: 5,
@@ -213,6 +215,8 @@ export function stepArcade(
           p.y = p.homeY;
         });
         b.owner = scorer === 0 ? 11 : 5;
+        if (scorer === 0) s.players[5].x = 39;
+        else s.players[11].x = 61;
         s.selected = 5;
         b.x = 50;
         b.y = 32;

@@ -84,3 +84,12 @@ test("120 seconds end the match and finished games cannot advance", () => {
   );
   assert.deepEqual(createArcade().score, [0, 0]);
 });
+
+test("a player can dribble around the defence and score using ordinary controls", () => {
+  let s = createArcade();
+  for (let i = 0; i < 80; i++) s = stepArcade(s, { ...idle, y: 1 }, 1 / 60);
+  for (let i = 0; i < 120; i++) s = stepArcade(s, { ...idle, x: 1 }, 1 / 60);
+  s = stepArcade(s, { ...idle, shoot: true }, 1 / 60);
+  for (let i = 0; i < 180; i++) s = stepArcade(s, idle, 1 / 60);
+  assert.equal(s.score[0], 1);
+});
