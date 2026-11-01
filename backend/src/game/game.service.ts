@@ -7,7 +7,14 @@ import {
 import { Prisma } from "@prisma/client";
 import { Season } from "@rwog/shared";
 import { PrismaService } from "../database/prisma.service";
-import { newSeason, playRound, standings, validLineup } from "./engine";
+import {
+  autoLineup,
+  newSeason,
+  playRound,
+  standings,
+  validLineup,
+} from "./engine";
+import { generateStarterSquad } from "../players/squad-generator";
 import { LineupDto, TransferDto } from "./game.dto";
 
 @Injectable()
@@ -28,7 +35,7 @@ export class GameService {
             include: { players: true, gameState: true },
           });
           if (!team) throw new NotFoundException("Team not found");
-          if (!team.gameState) return null;
+          if (!team.gameState || team.players.length === 0) return null;
           const season = team.gameState.payload as unknown as Season;
           season.clubs[0].name = team.name;
           return {
@@ -55,9 +62,29 @@ export class GameService {
         include: { players: true, gameState: true },
       });
       if (!team) throw new NotFoundException("Team not found");
-      const season = team.gameState
+      const previousSeason = team.gameState
         ? (team.gameState.payload as unknown as Season)
-        : newSeason(team, team.players);
+        : null;
+      // Older accounts may predate transactional squad creation. Repair only a
+      // completely empty, unplayed club under the same row lock as game writes.
+      // Never top up/replace an existing roster or reset season/budget data.
+      const recoverSquad =
+        action === "view" &&
+        team.players.length === 0 &&
+        (!previousSeason ||
+          previousSeason.fixtures.every((f) => f.homeGoals === null));
+      if (recoverSquad) {
+        await tx.player.createMany({ data: generateStarterSquad(team.id) });
+        team = await tx.team.findUniqueOrThrow({
+          where: { id: team.id },
+          include: { players: true, gameState: true },
+        });
+      }
+      const season = previousSeason ?? newSeason(team, team.players);
+      if (recoverSquad) {
+        season.lineup = autoLineup(team.players, season.formation);
+        if (previousSeason) season.revision++;
+      }
       if (action !== "view" && season.revision !== revision)
         throw new ConflictException(
           "Your club changed. Refresh and try again.",
@@ -150,7 +177,7 @@ export class GameService {
           `Sold ${player.firstName} ${player.lastName} for €${price.toLocaleString("en-US")}`,
         );
       }
-      if (!team.gameState) {
+      if (!team.gameState || recoverSquad) {
         await tx.player.updateMany({
           where: { teamId: team.id },
           data: { isStarter: false },
