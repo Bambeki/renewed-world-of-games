@@ -489,8 +489,9 @@ export function stepFootball(
       const reach = moving > 6 ? 1.65 : close ? 0.48 : 0.85;
       carrier.touchClock = Math.max(0, (carrier.touchClock ?? 0) - dt);
       if (
-        carrier.touchClock === 0 ||
-        (moving < 0.3 && dist(carrier, b) > 0.8)
+        Math.abs(b.x) <= 52.5 && Math.abs(b.z) <= 34 &&
+        (carrier.touchClock === 0 ||
+        (moving < 0.3 && dist(carrier, b) > 0.8))
       ) {
         const side = Math.sin(carrier.gait ?? 0) > 0 ? 0.15 : -0.15;
         const tx =
