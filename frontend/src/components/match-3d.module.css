@@ -1,0 +1,229 @@
+.match {
+  border: 1px solid #368a73 !important;
+  scroll-margin-top: 20px;
+  overflow: hidden;
+}
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.header h2 {
+  font-size: 28px !important;
+}
+.header p {
+  margin: 4px 0 10px !important;
+}
+.score {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+  background: #071923;
+  padding: 18px;
+  border-radius: 12px;
+  margin: 16px 0;
+}
+.score span {
+  overflow-wrap: anywhere;
+}
+.score strong {
+  font-size: 38px;
+  white-space: nowrap;
+}
+.score small {
+  display: block;
+  color: #a2bcb8;
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  margin-top: 8px;
+}
+.score b {
+  grid-column: 1/-1;
+  color: #76edb6;
+  font-size: 12px;
+  letter-spacing: 2px;
+}
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 12px 0 18px;
+}
+.toolbar label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.toolbar select {
+  max-width: 160px;
+}
+.viewport {
+  position: relative;
+  height: clamp(360px, 52vw, 660px);
+  background: #233c45;
+  border-radius: 12px;
+  overflow: hidden;
+  outline-offset: 4px;
+}
+.viewport:focus-visible {
+  outline: 3px solid #ffdf70;
+}
+.scene {
+  position: absolute;
+  inset: 0;
+}
+.scene canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.overlay {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+  gap: 12px;
+  background: linear-gradient(#071b2155, #071b21a0);
+  padding: 24px;
+}
+.overlay strong {
+  font-size: clamp(22px, 4vw, 44px);
+  letter-spacing: 3px;
+  text-shadow: 0 3px 8px #071b21;
+}
+.overlay span {
+  max-width: 500px;
+}
+.playerHUD {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  background: #081820e8;
+  padding: 10px 14px;
+  border-left: 3px solid #fbe574;
+  border-radius: 6px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  max-width: calc(100% - 24px);
+  font-size: 12px;
+}
+.playerHUD > span {
+  width: 100%;
+  font-weight: bold;
+}
+.playerHUD label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  color: #b9d1c9;
+  font-size: 10px;
+}
+.playerHUD meter {
+  width: 80px;
+  height: 10px;
+  accent-color: #31cd85;
+}
+.commentary {
+  color: #a9efd0 !important;
+  min-height: 26px;
+}
+.controlGuide {
+  border-top: 1px solid #29463e;
+  padding-top: 12px;
+}
+.controlGuide p {
+  font-size: 12px;
+  margin: 6px 0 !important;
+}
+.touch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+.touch button {
+  min-height: 46px;
+  min-width: 46px;
+  touch-action: none;
+  user-select: none;
+}
+.dpad {
+  display: grid;
+  grid-template-columns: repeat(3, 48px);
+  gap: 5px;
+}
+.dpad button {
+  padding: 4px !important;
+}
+.dpad button:first-child {
+  grid-column: 2;
+}
+.dpad button:nth-child(2) {
+  grid-column: 1;
+  grid-row: 2;
+}
+.dpad button:nth-child(3) {
+  grid-column: 2;
+  grid-row: 2;
+}
+.dpad button:nth-child(4) {
+  grid-column: 3;
+  grid-row: 2;
+}
+.touchActions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  max-width: 650px;
+}
+.notes {
+  font-size: 11px !important;
+}
+.match:fullscreen {
+  background: #0c1620;
+  padding: 16px !important;
+  overflow: auto;
+  border: 0 !important;
+}
+.match:fullscreen .viewport {
+  height: 65vh;
+}
+@media (max-width: 600px) {
+  .score {
+    padding: 12px;
+    gap: 8px;
+  }
+  .score strong {
+    font-size: 28px;
+  }
+  .score small {
+    font-size: 8px;
+  }
+  .toolbar button {
+    font-size: 12px !important;
+    padding: 8px 10px !important;
+  }
+  .viewport {
+    height: 380px;
+  }
+  .playerHUD {
+    font-size: 10px;
+  }
+  .touchActions button {
+    font-size: 12px !important;
+    padding: 8px 10px !important;
+  }
+}
