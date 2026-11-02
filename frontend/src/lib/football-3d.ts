@@ -569,43 +569,44 @@ export function stepFootball(
         );
       }
     }
-    if (b.owner === null && (Math.abs(b.x) > 52.5 || Math.abs(b.z) > 34)) {
-      if (Math.abs(b.x) > 52.5 && Math.abs(b.z) < 3.66 && b.y < 2.44) {
-        const scorer = b.x > 0 ? 0 : 1;
-        s.score[scorer]++;
-        s.phase = "goal";
-        s.phaseTime = 3;
-        s.restartTeam = scorer === 0 ? 1 : 0;
-        b.vx = 0;
-        b.vz = 0;
-        announce(
-          s,
-          scorer === 0
-            ? "GOAL! Your team finds the net!"
-            : "Goal for the visitors. Regroup for kickoff.",
-        );
-      } else {
-        const restart = (1 - b.lastTouch) as 0 | 1;
-        b.x = limit(b.x, -47, 47);
-        b.z = limit(b.z, -32, 32);
-        const taker = nearest(s, restart);
-        s.players[taker].x = b.x;
-        s.players[taker].z = b.z;
-        b.owner = taker;
-        b.lastTouch = restart;
-        b.cooldown = 1.3;
-        b.y = 0.22;
-        b.vx = 0;
-        b.vy = 0;
-        b.vz = 0;
-        s.phase = "restart";
-        s.phaseTime = 1.2;
-        if (restart === 0) s.selected = taker;
-        announce(
-          s,
-          "Ball out. Possession restarts from the sideline / goal line.",
-        );
-      }
+  }
+  // A dribble crossing a line is out too, even during a control window.
+  if (Math.abs(b.x) > 52.5 || Math.abs(b.z) > 34) {
+    if (Math.abs(b.x) > 52.5 && Math.abs(b.z) < 3.66 && b.y < 2.44) {
+      const scorer = b.x > 0 ? 0 : 1;
+      s.score[scorer]++;
+      s.phase = "goal";
+      s.phaseTime = 3;
+      s.restartTeam = scorer === 0 ? 1 : 0;
+      b.vx = 0;
+      b.vz = 0;
+      announce(
+        s,
+        scorer === 0
+          ? "GOAL! Your team finds the net!"
+          : "Goal for the visitors. Regroup for kickoff.",
+      );
+    } else {
+      const restart = (1 - b.lastTouch) as 0 | 1;
+      b.x = limit(b.x, -47, 47);
+      b.z = limit(b.z, -32, 32);
+      const taker = nearest(s, restart);
+      s.players[taker].x = b.x;
+      s.players[taker].z = b.z;
+      b.owner = taker;
+      b.lastTouch = restart;
+      b.cooldown = 1.3;
+      b.y = 0.22;
+      b.vx = 0;
+      b.vy = 0;
+      b.vz = 0;
+      s.phase = "restart";
+      s.phaseTime = 1.2;
+      if (restart === 0) s.selected = taker;
+      announce(
+        s,
+        "Ball out. Possession restarts from the sideline / goal line.",
+      );
     }
   }
   // Defensive clamping also covers body separation at field edges.

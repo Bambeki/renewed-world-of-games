@@ -234,3 +234,18 @@ test("stationary footballers do not cycle a running animation", () => {
   const n = step(s, {}, 20);
   assert.equal(n.players[9].gait, 0);
 });
+
+test("a controlled dribble crossing the touchline awards the opposition a restart", () => {
+  const s = play();
+  s.players[9].x = 0;
+  s.players[9].z = 33;
+  s.players[9].touchClock = 0.2;
+  s.ball.x = 0;
+  s.ball.z = 34.1;
+  s.ball.vz = 1;
+  s.ball.owner = 9;
+  s.ball.lastTouch = 0;
+  const n = step(s);
+  assert.equal(n.phase, "restart");
+  assert.equal(n.ball.lastTouch, 1);
+});
