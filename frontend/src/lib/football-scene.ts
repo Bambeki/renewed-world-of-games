@@ -369,12 +369,14 @@ export function createFootballScene(
       s.players.forEach((p, i) => {
         const model = playerGroups[i],
           speed = Math.hypot(p.vx, p.vz),
-          swing =
-            Math.sin(s.elapsed * (speed > 6 ? 15 : 10) + i) *
-            Math.min(speed / 6, 1) *
-            0.65;
+          swing = Math.sin((p.gait ?? 0) + i) * Math.min(speed / 6, 1) * 0.65;
         model.root.position.set(p.x, p.tackle > 0.65 ? -0.12 : 0, p.z);
         model.root.rotation.y = p.facing;
+        model.root.position.y +=
+          Math.abs(Math.sin((p.gait ?? 0) * 2)) *
+          Math.min(speed / 7, 1) *
+          0.065;
+        model.root.rotation.x = Math.min(speed / 9, 1) * 0.09;
         model.leftLeg.rotation.x = swing;
         model.rightLeg.rotation.x = -swing;
         model.leftArm.rotation.x = -swing * 0.8;

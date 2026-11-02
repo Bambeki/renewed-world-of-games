@@ -206,3 +206,31 @@ test("an aimed shot from the box can beat the keeper under normal ball physics",
   assert.equal(shot.score[0], 1);
   assert.equal(shot.phase, "goal");
 });
+
+test("dribbling uses separated rolling touches rather than a rigid body offset", () => {
+  let s = play();
+  const gaps = [];
+  for (let i = 0; i < 45; i++) {
+    s = step(s, { z: 1 });
+    const p = s.players[s.selected];
+    gaps.push(Math.hypot(s.ball.x - p.x, s.ball.z - p.z));
+  }
+  assert.ok(Math.max(...gaps) - Math.min(...gaps) > 0.15);
+  assert.ok(s.players[9].gait > 0);
+  assert.ok(s.players[9].touchClock > 0);
+});
+test("analog input scales pace and facing turns without snapping", () => {
+  const s = play();
+  const slow = step(s, { z: 0.25 }, 20),
+    fast = step(s, { z: 1 }, 20);
+  assert.ok(Math.abs(fast.players[9].z) > Math.abs(slow.players[9].z) * 2);
+  const n = step(s, { z: -1 });
+  assert.ok(
+    Math.abs(n.players[9].facing - s.players[9].facing) <= 8 / 60 + 0.001,
+  );
+});
+test("stationary footballers do not cycle a running animation", () => {
+  const s = play();
+  const n = step(s, {}, 20);
+  assert.equal(n.players[9].gait, 0);
+});

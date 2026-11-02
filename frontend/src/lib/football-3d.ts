@@ -1,5 +1,7 @@
 /** Authoritative only for this local exhibition. Fixed-step simulation in metres. */
 export type Athlete = {
+  gait?: number;
+  touchClock?: number;
   x: number;
   z: number;
   vx: number;
@@ -193,9 +195,17 @@ function run(p: Athlete, tx: number, tz: number, speed: number, dt: number) {
   const response = 1 - Math.exp(-7 * dt);
   p.vx += (targetX - p.vx) * response;
   p.vz += (targetZ - p.vz) * response;
+  p.gait = (p.gait ?? 0) + Math.hypot(p.vx, p.vz) * dt * 2.8;
   p.x = limit(p.x + p.vx * dt, -51, 51);
   p.z = limit(p.z + p.vz * dt, -33, 33);
-  if (Math.hypot(p.vx, p.vz) > 0.2) p.facing = Math.atan2(p.vx, p.vz);
+  if (Math.hypot(p.vx, p.vz) > 0.2) {
+    const target = Math.atan2(p.vx, p.vz);
+    const turn = Math.atan2(
+      Math.sin(target - p.facing),
+      Math.cos(target - p.facing),
+    );
+    p.facing += limit(turn, -8 * dt, 8 * dt);
+  }
 }
 function kick(
   s: FootballState,
@@ -284,7 +294,7 @@ export function stepFootball(
     controlled,
     controlled.x + (magnitude ? (input.x / magnitude) * 5 : 0),
     controlled.z + (magnitude ? (input.z / magnitude) * 5 : 0),
-    magnitude ? pace : 0,
+    magnitude ? pace * Math.min(magnitude, 1) : 0,
     dt,
   );
   if (
@@ -325,7 +335,16 @@ export function stepFootball(
       continue;
     }
     if (i === b.owner) {
-      run(p, p.team === 1 ? -49 : 49, limit(p.z * 0.92, -10, 10), 5.1, dt);
+      const obstacle = s.players
+        .filter(
+          (q) =>
+            q.team !== p.team &&
+            Math.abs(q.x - p.x) < 5 &&
+            Math.abs(q.z - p.z) < 4,
+        )
+        .sort((a, b) => dist(a, p) - dist(b, p))[0];
+      const lane = obstacle ? p.z + (p.z >= obstacle.z ? 6 : -6) : p.z * 0.92;
+      run(p, p.team === 1 ? -49 : 49, limit(lane, -24, 24), 5.1, dt);
       continue;
     }
     const owns = b.owner !== null && s.players[b.owner].team === p.team;
@@ -464,15 +483,45 @@ export function stepFootball(
     if (b.owner !== null) {
       const carrier = s.players[b.owner];
       const moving = Math.hypot(carrier.vx, carrier.vz);
-      const stride = 0.7 + Math.sin(s.elapsed * 12) * 0.12;
-      b.x = carrier.x + Math.sin(carrier.facing) * stride;
-      b.z = carrier.z + Math.cos(carrier.facing) * stride;
-      b.y =
-        0.22 +
-        Math.abs(Math.sin(s.elapsed * 12)) * 0.04 * Math.min(moving / 5, 1);
-      b.vx = carrier.vx;
-      b.vz = carrier.vz;
+      // Touches impart velocity; the ball rolls independently between contacts.
+      // Sprinting pushes it farther ahead and exposes it during sharp turns.
+      const close = b.owner === s.selected && input.shield;
+      const reach = moving > 6 ? 1.65 : close ? 0.48 : 0.85;
+      carrier.touchClock = Math.max(0, (carrier.touchClock ?? 0) - dt);
+      if (
+        carrier.touchClock === 0 ||
+        (moving < 0.3 && dist(carrier, b) > 0.8)
+      ) {
+        const side = Math.sin(carrier.gait ?? 0) > 0 ? 0.15 : -0.15;
+        const tx =
+          carrier.x +
+          Math.sin(carrier.facing) * reach +
+          Math.cos(carrier.facing) * side;
+        const tz =
+          carrier.z +
+          Math.cos(carrier.facing) * reach -
+          Math.sin(carrier.facing) * side;
+        b.vx = carrier.vx + (tx - b.x) * (close ? 10 : 7);
+        b.vz = carrier.vz + (tz - b.z) * (close ? 10 : 7);
+        carrier.touchClock = close ? 0.13 : moving > 6 ? 0.32 : 0.22;
+      }
+      b.x += b.vx * dt;
+      b.z += b.vz * dt;
+      const drag = Math.exp(-(moving < 0.3 ? 10 : 1.8) * dt);
+      b.vx *= drag;
+      b.vz *= drag;
+      b.y = 0.22;
       b.vy = 0;
+      if (!carrier.keeper && dist(carrier, b) > (moving > 6 ? 3.8 : 3)) {
+        b.owner = null;
+        b.releasedBy = undefined;
+        b.cooldown = 0.08;
+        s.charge = 0;
+        announce(
+          s,
+          "Heavy touch — chase the loose ball or switch to a teammate.",
+        );
+      }
       s.possession[carrier.team] += dt;
     }
   } else {
@@ -506,6 +555,7 @@ export function stepFootball(
             );
       if (catcher !== -1) {
         b.owner = catcher;
+        s.players[catcher].touchClock = 0;
         b.cooldown = 0.55;
         b.lastTouch = s.players[catcher].team;
         s.keeperHold = 0;
