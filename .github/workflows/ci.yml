@@ -2,13 +2,14 @@ name: CI
 
 on:
   push:
-    branches: [main, develop, feature/investor-demo-mvp, feature/ludo-local, feature/football-3d]
+    branches: [main, develop, feature/investor-demo-mvp, feature/ludo-local, feature/football-3d, feature/release-candidate]
   pull_request:
-    branches: [main, develop, feature/investor-demo-mvp, feature/ludo-local]
+    branches: [main, develop, feature/investor-demo-mvp, feature/ludo-local, feature/football-3d]
 
 jobs:
   check:
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:16
@@ -42,7 +43,11 @@ jobs:
       - run: npm run build -w frontend
       - run: npx playwright install --with-deps chromium
       - name: Verify API and browser journeys on PostgreSQL
+        env:
+          CAMPAIGN_SCREENSHOTS: /tmp/rwog-campaign-screenshots
+          FOOTBALL3D_SCREENSHOTS: /tmp/rwog-campaign-screenshots
         run: |
+          mkdir -p /tmp/rwog-campaign-screenshots
           npm run start -w backend > /tmp/rwog-api.log 2>&1 &
           npm run start -w frontend -- --hostname 127.0.0.1 > /tmp/rwog-web.log 2>&1 &
           for attempt in $(seq 1 30); do
@@ -54,6 +59,15 @@ jobs:
           npm run test:ludo:browser
           npm run test:arcade:browser
           npm run test:3d:browser
+          npm run test:campaigns:browser
+      - name: Browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-browser-screenshots
+          path: /tmp/rwog-campaign-screenshots
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Server logs on failure
         if: failure()
         run: cat /tmp/rwog-api.log /tmp/rwog-web.log 2>/dev/null || true

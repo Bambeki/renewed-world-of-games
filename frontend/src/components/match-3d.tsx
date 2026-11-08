@@ -11,6 +11,7 @@ import {
 import type { CameraMode } from "@/lib/football-scene";
 import styles from "./match-3d.module.css";
 type Props = {
+  training?: boolean;
   home: string;
   away: string;
   roster: { name: string; overall: number }[];
@@ -18,19 +19,23 @@ type Props = {
   onClose: () => void;
 };
 export default function Match3D({
+  training = false,
   home,
   away,
   roster,
   formation,
   onClose,
 }: Props) {
-  const [initial] = useState(() => createFootball(roster, formation));
+  const [initial] = useState(() => createFootball(roster, formation, training));
   const current = useRef(initial);
   const [snapshot, setSnapshot] = useState<FootballState>(initial);
   const input = useRef<FootballInput>(neutralInput());
   const keys = useRef(new Set<string>());
   const runningRef = useRef(false);
   const [running, setRunning] = useState(false);
+  const [pauseReason, setPauseReason] = useState(
+    "Choose Start to begin. Click the pitch for keyboard control.",
+  );
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
@@ -47,7 +52,8 @@ export default function Match3D({
     input.current = neutralInput();
     current.current.charge = 0;
   }
-  function pause() {
+  function pause(reason = "Paused by you. Resume when you are ready.") {
+    setPauseReason(reason);
     runningRef.current = false;
     setRunning(false);
     clear();
@@ -78,7 +84,7 @@ export default function Match3D({
     )
       return;
     pause();
-    current.current = createFootball(roster, formation);
+    current.current = createFootball(roster, formation, training);
     setSnapshot(current.current);
   }
   async function toggleSound() {
@@ -248,9 +254,13 @@ export default function Match3D({
     };
   }, [attempt]);
   useEffect(() => {
-    const blur = () => pause();
+    const blur = () =>
+      pause(
+        "Paused because this window lost focus. Select Resume to continue.",
+      );
     const visibility = () => {
-      if (document.hidden) pause();
+      if (document.hidden)
+        pause("Paused because this tab was hidden. Select Resume to continue.");
     };
     const pad = () => {
       try {
@@ -305,7 +315,11 @@ export default function Match3D({
         <div>
           <p className="eyebrow">RWOG FOOTBALL · 3D PROTOTYPE</p>
           <h2>Step onto the pitch</h2>
-          <p>11 v 11 · {formation} · Your saved XI · Exhibition</p>
+          <p>
+            {training
+              ? "Finishing drill · One attacker and goalkeeper · Three active minutes"
+              : `11 v 11 · ${formation} · Your saved XI · Exhibition`}
+          </p>
         </div>
         <button
           className="secondary"
@@ -460,6 +474,10 @@ export default function Match3D({
           if (key === " " && wasHeld && runningRef.current)
             input.current.shoot = true;
         }}
+        onPointerDown={(event) => {
+          if ((event.target as HTMLElement).tagName === "CANVAS")
+            viewport.current?.focus();
+        }}
         onBlur={() => {
           keys.current.clear();
           input.current.shootHeld = false;
@@ -490,9 +508,14 @@ export default function Match3D({
               {snapshot.phase === "fulltime"
                 ? `${snapshot.score[0]} – ${snapshot.score[1]}`
                 : !running
-                  ? "Start above. Click the pitch for keyboard control."
+                  ? pauseReason
                   : snapshot.message}
             </span>
+            {!running && ready && snapshot.phase !== "fulltime" && (
+              <button className={styles.overlayButton} onClick={toggle}>
+                {snapshot.elapsed ? "Continue play" : "Kick off"}
+              </button>
+            )}
           </div>
         )}
         <div className={styles.playerHUD}>

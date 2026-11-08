@@ -209,14 +209,18 @@ export default function GamePanel({ mode = "overview" }: { mode?: string }) {
           </strong>
         </article>
       </div>
-      {mode === "matches" && (
+      {(mode === "matches" || mode === "training") && (
         <section>
           <p className="eyebrow">TAKE CONTROL</p>
-          <h2>Play 3D football</h2>
+          <h2>
+            {mode === "training"
+              ? "Football training pitch"
+              : "Play 3D football"}
+          </h2>
           <p>
-            Take your starting XI onto a 3D pitch. Sprint, dribble, pass, tackle
-            and shoot against the computer. Exhibition scores stay separate from
-            your league season.
+            {mode === "training"
+              ? "Practise dribbling and charged shots with one attacker against a goalkeeper. Attack the right goal. Open Matches for the full 11 v 11 exhibition and passing to teammates."
+              : "Take your starting XI onto a 3D pitch. Sprint, dribble, pass, tackle and shoot against the computer. Exhibition scores stay separate from your league season."}
           </p>
           <button
             onClick={() => setThreeOpen(true)}
@@ -224,23 +228,27 @@ export default function GamePanel({ mode = "overview" }: { mode?: string }) {
           >
             Play 3D match
           </button>{" "}
-          <button
-            className="secondary"
-            onClick={() => setArcadeOpen(true)}
-            disabled={arcadeOpen}
-          >
-            Play live exhibition
-          </button>
+          {mode === "matches" && (
+            <button
+              className="secondary"
+              onClick={() => setArcadeOpen(true)}
+              disabled={arcadeOpen}
+            >
+              Play live exhibition
+            </button>
+          )}
           <p>
             <small>
-              “Play live exhibition” opens the simple 2D mode. “Play 3D match”
-              opens the new 11-a-side prototype. Requires a saved XI.
+              {mode === "training"
+                ? "This solo drill uses your club's selected attacker. The score does not affect your league. Requires a saved XI."
+                : "“Play live exhibition” opens the simple 2D mode. “Play 3D match” opens the new 11-a-side prototype. Requires a saved XI."}
             </small>
           </p>
         </section>
       )}
       {threeOpen && (
         <Match3D
+          training={mode === "training"}
           home={team.name}
           away={
             next

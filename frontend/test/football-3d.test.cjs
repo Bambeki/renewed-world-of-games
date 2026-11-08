@@ -249,3 +249,18 @@ test("a controlled dribble crossing the touchline awards the opposition a restar
   assert.equal(n.phase, "restart");
   assert.equal(n.ball.lastTouch, 1);
 });
+
+test("training mode has one attacker and one keeper, and passing cannot target hidden players", () => {
+  let s = createFootball([], "4-4-2", true);
+  s.phase = "playing";
+  assert.equal(s.players.filter((p) => !p.inactive).length, 2);
+  assert.equal(s.players[s.selected].inactive, false);
+  s = stepFootball(s, { ...neutralInput(), pass: true }, 1 / 60);
+  assert.equal(s.ball.owner, 9);
+  s = stepFootball(s, { ...neutralInput(), switch: true }, 1 / 60);
+  assert.equal(s.selected, 9);
+  for (let i = 0; i < 180; i++) s = stepFootball(s, neutralInput(), 1 / 60);
+  assert.ok(
+    s.players.filter((p) => p.inactive).every((p) => p.vx === 0 && p.vz === 0),
+  );
+});
