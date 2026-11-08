@@ -2,6 +2,12 @@
 
 This records implemented behaviour and observed checks. It is not a certification of market readiness or console-quality gameplay.
 
+## Native PostgreSQL CI result
+
+[GitHub Actions run 42487747074](https://github.com/Bambeki/renewed-world-of-games/actions/runs/42487747074) completed successfully for code commit `7f6b1b7a62da985acaa218fa01807e98a865bde0` on Ubuntu 24.04, Node 20 and PostgreSQL 16. Both checked-in migrations applied on a fresh database. Installation, typecheck, lint, build, **45 unit/engine tests**, **2 API integration tests** and **all five browser journeys** passed.
+
+The browser journeys cover the manager, Ludo, 2D arcade football, 3D football/training and the complete adventure/Roman campaigns. The run includes a `release-browser-screenshots` artifact. [Selected actual test output](evidence/ci-results.txt) is checked in for review; full logs and downloadable screenshots are attached to the run.
+
 ## Local results
 
 Environment: Linux, Node **24.22.1**, npm **11.9.0**, Playwright **1.58.2**, headless Chromium. The API browser journeys used a temporary PGlite PostgreSQL-compatible wire server with the checked-in migrations. Native PostgreSQL 16 and Node 20 verification belongs to CI; consult the linked pull request's check for its exact commit and outcome.
