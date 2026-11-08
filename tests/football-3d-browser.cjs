@@ -225,6 +225,34 @@ const { chromium, expect } = require("@playwright/test");
       .getByRole("button", { name: "Close 3D match", exact: true })
       .click();
     await expect(match).toHaveCount(0);
+    await page.goto(base + "/training");
+    await page
+      .getByRole("button", { name: "Play 3D match", exact: true })
+      .click();
+    const drill = page.getByRole("region", {
+      name: "3D football exhibition",
+      exact: true,
+    });
+    await expect(drill.getByText(/Finishing drill/)).toBeVisible();
+    await expect(
+      drill.getByRole("button", { name: "Kick off", exact: true }),
+    ).toBeEnabled({ timeout: 30000 });
+    await drill.getByRole("button", { name: "Kick off", exact: true }).click();
+    await page.clock.runFor(2300);
+    await expect(
+      drill.getByRole("group", { name: "3D match controls", exact: true }),
+    ).toHaveAttribute("data-phase", "playing");
+    await page.evaluate(() => window.dispatchEvent(new Event("blur")));
+    await expect(
+      drill.getByText(/Paused because this window lost focus/),
+    ).toBeVisible();
+    await drill
+      .getByRole("button", { name: "Continue play", exact: true })
+      .click();
+    await page.clock.runFor(200);
+    await expect(
+      drill.getByRole("button", { name: "Pause 3D match", exact: true }),
+    ).toBeVisible();
     expect(errors).toEqual([]);
     console.log(
       "PASS 3D football Chromium: real WebGL rendering, keyboard movement/sprint/charged shot/actions, pointer controls, pause/reset, three cameras, three widths, tab-hide pause, context-loss retry/disposal, close, unchanged league and no page/5xx errors.",

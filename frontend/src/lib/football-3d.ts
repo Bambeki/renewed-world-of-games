@@ -1,5 +1,6 @@
 /** Authoritative only for this local exhibition. Fixed-step simulation in metres. */
 export type Athlete = {
+  inactive?: boolean;
   gait?: number;
   touchClock?: number;
   x: number;
@@ -34,6 +35,7 @@ export type FootballInput = {
   switch: boolean;
 };
 export type FootballState = {
+  training?: boolean;
   players: Athlete[];
   ball: {
     x: number;
@@ -82,6 +84,7 @@ const dist = (a: { x: number; z: number }, b: { x: number; z: number }) =>
 export function createFootball(
   roster: { name: string; overall: number }[] = [],
   formation = "4-4-2",
+  training = false,
 ): FootballState {
   const counts = /^(4-4-2|4-3-3|3-5-2)$/.test(formation)
     ? formation.split("-").map(Number)
@@ -116,6 +119,7 @@ export function createFootball(
     })),
   );
   const s: FootballState = {
+    training,
     players,
     ball: {
       x: 0,
@@ -141,6 +145,10 @@ export function createFootball(
     restartTeam: 0,
     keeperHold: 0,
   };
+  if (training)
+    s.players.forEach((p, i) => {
+      p.inactive = i !== 9 && i !== 11;
+    });
   kickoff(s, 0);
   return s;
 }
@@ -149,6 +157,7 @@ function announce(s: FootballState, text: string) {
   s.eventId++;
 }
 function kickoff(s: FootballState, team: 0 | 1) {
+  if (s.training) team = 0;
   s.players.forEach((p) => {
     p.x = p.baseX;
     p.z = p.baseZ;
@@ -157,7 +166,7 @@ function kickoff(s: FootballState, team: 0 | 1) {
   });
   const taker = team === 0 ? 9 : 20;
   const p = s.players[taker];
-  p.x = team === 0 ? -0.8 : 0.8;
+  p.x = s.training ? 25 : team === 0 ? -0.8 : 0.8;
   p.z = 0;
   // Keep opponents outside the centre circle at restarts.
   s.players.forEach((q) => {
@@ -166,7 +175,7 @@ function kickoff(s: FootballState, team: 0 | 1) {
     }
   });
   s.ball = {
-    x: 0,
+    x: s.training ? 25.8 : 0,
     y: 0.22,
     z: 0,
     vx: 0,
@@ -181,10 +190,16 @@ function kickoff(s: FootballState, team: 0 | 1) {
   s.charge = 0;
 }
 function nearest(s: FootballState, team: number, exclude = -1) {
-  return s.players
+  const candidates = s.players
     .map((p, i) => ({ p, i }))
-    .filter(({ p, i }) => p.team === team && !p.keeper && i !== exclude)
-    .sort((a, b) => dist(a.p, s.ball) - dist(b.p, s.ball))[0].i;
+    .filter(({ p }) => p.team === team && !p.inactive);
+  return (
+    candidates
+      .filter(({ p, i }) => !p.keeper && i !== exclude)
+      .sort((a, b) => dist(a.p, s.ball) - dist(b.p, s.ball))[0]?.i ??
+    candidates[0]?.i ??
+    s.selected
+  );
 }
 function run(p: Athlete, tx: number, tz: number, speed: number, dt: number) {
   const dx = tx - p.x,
@@ -320,7 +335,7 @@ export function stepFootball(
   }
   const pressing = [nearest(s, 0), nearest(s, 1)];
   for (let i = 0; i < s.players.length; i++) {
-    if (i === s.selected) continue;
+    if (i === s.selected || s.players[i].inactive) continue;
     const p = s.players[i],
       direction = p.team === 0 ? 1 : -1;
     if (p.keeper) {
@@ -338,6 +353,7 @@ export function stepFootball(
       const obstacle = s.players
         .filter(
           (q) =>
+            !q.inactive &&
             q.team !== p.team &&
             Math.abs(q.x - p.x) < 5 &&
             Math.abs(q.z - p.z) < 4,
@@ -368,7 +384,7 @@ export function stepFootball(
       const a = s.players[i],
         c = s.players[j],
         d = dist(a, c);
-      if (d < 0.92) {
+      if (!a.inactive && !c.inactive && d < 0.92) {
         const nx = d > 0.001 ? (a.x - c.x) / d : 1,
           nz = d > 0.001 ? (a.z - c.z) / d : 0,
           push = (0.92 - d) / 2;
@@ -422,7 +438,10 @@ export function stepFootball(
           az = magnitude ? input.z / magnitude : Math.cos(owner.facing);
         const target = s.players
           .map((p, i) => ({ p, i }))
-          .filter(({ p, i }) => p.team === 0 && !p.keeper && i !== b.owner)
+          .filter(
+            ({ p, i }) =>
+              !p.inactive && p.team === 0 && !p.keeper && i !== b.owner,
+          )
           .sort((a, c) => {
             const rank = (p: Athlete) => {
               const d = dist(owner, p) || 1;
@@ -432,19 +451,26 @@ export function stepFootball(
             };
             return rank(a.p) - rank(c.p);
           })[0];
-        kick(
-          s,
-          b.owner,
-          target.p.x + (input.through ? 6 : target.p.vx * 0.3),
-          target.p.z + target.p.vz * 0.3,
-          input.through ? 23 : 18,
-          input.lob ? 7.2 : 0.6,
-        );
-        s.charge = 0;
-        announce(
-          s,
-          `${input.lob ? "Lofted ball" : input.through ? "Through ball" : "Pass"} to ${target.p.name}.`,
-        );
+        if (!target) {
+          announce(
+            s,
+            "Solo finishing drill: dribble or shoot. Passes are available in the full exhibition.",
+          );
+        } else {
+          kick(
+            s,
+            b.owner,
+            target.p.x + (input.through ? 6 : target.p.vx * 0.3),
+            target.p.z + target.p.vz * 0.3,
+            input.through ? 23 : 18,
+            input.lob ? 7.2 : 0.6,
+          );
+          s.charge = 0;
+          announce(
+            s,
+            `${input.lob ? "Lofted ball" : input.through ? "Through ball" : "Pass"} to ${target.p.name}.`,
+          );
+        }
       }
     } else if (
       owner.team === 1 &&
@@ -465,6 +491,7 @@ export function stepFootball(
     ) {
       const challenger = s.players.findIndex(
         (p) =>
+          !p.inactive &&
           p.team !== owner.team &&
           !p.keeper &&
           dist(p, owner) < 1.15 &&
@@ -489,9 +516,9 @@ export function stepFootball(
       const reach = moving > 6 ? 1.65 : close ? 0.48 : 0.85;
       carrier.touchClock = Math.max(0, (carrier.touchClock ?? 0) - dt);
       if (
-        Math.abs(b.x) <= 52.5 && Math.abs(b.z) <= 34 &&
-        (carrier.touchClock === 0 ||
-        (moving < 0.3 && dist(carrier, b) > 0.8))
+        Math.abs(b.x) <= 52.5 &&
+        Math.abs(b.z) <= 34 &&
+        (carrier.touchClock === 0 || (moving < 0.3 && dist(carrier, b) > 0.8))
       ) {
         const side = Math.sin(carrier.gait ?? 0) > 0 ? 0.15 : -0.15;
         const tx =
@@ -545,14 +572,23 @@ export function stepFootball(
     {
       const eligible = (i: number) => i !== b.releasedBy || b.cooldown === 0;
       const keeper = s.players.findIndex(
-        (p, i) => eligible(i) && p.keeper && dist(p, b) < 1.4 && b.y < 1.9,
+        (p, i) =>
+          !p.inactive &&
+          eligible(i) &&
+          p.keeper &&
+          dist(p, b) < 1.4 &&
+          b.y < 1.9,
       );
       const catcher =
         keeper !== -1
           ? keeper
           : s.players.findIndex(
               (p, i) =>
-                eligible(i) && !p.keeper && dist(p, b) < 0.85 && b.y < 0.65,
+                !p.inactive &&
+                eligible(i) &&
+                !p.keeper &&
+                dist(p, b) < 0.85 &&
+                b.y < 0.65,
             );
       if (catcher !== -1) {
         b.owner = catcher;
@@ -588,7 +624,7 @@ export function stepFootball(
           : "Goal for the visitors. Regroup for kickoff.",
       );
     } else {
-      const restart = (1 - b.lastTouch) as 0 | 1;
+      const restart = (s.training ? 0 : 1 - b.lastTouch) as 0 | 1;
       b.x = limit(b.x, -47, 47);
       b.z = limit(b.z, -32, 32);
       const taker = nearest(s, restart);

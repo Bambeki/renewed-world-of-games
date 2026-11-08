@@ -57,6 +57,7 @@ export default function HomePage() {
         >
           Play Ludo with friends →
         </Link>
+        <Link href="/games" className="mt-6 block font-semibold text-[var(--primary)]">Explore all games →</Link>
         <p className="mt-7 text-xs text-[var(--muted)]">
           Playable MVP · Single-manager seasons against fictional clubs
         </p>

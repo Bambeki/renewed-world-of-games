@@ -2,7 +2,9 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 const nav = [
+  ["/games", "All games"],
   ["/dashboard", "Overview"],
+  ["/training", "Training pitch"],
   ["/ludo", "Ludo"],
   ["/squad", "Squad"],
   ["/lineup", "Starting XI"],
