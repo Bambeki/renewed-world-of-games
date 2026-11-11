@@ -6,6 +6,8 @@ export type Athlete = {
   receiving?: number;
   pressure?: number;
   shielding?: boolean;
+  decisionClock?: number;
+  save?: number;
   x: number;
   z: number;
   vx: number;
@@ -39,6 +41,11 @@ export type FootballInput = {
 };
 export type FootballState = {
   training?: boolean;
+  difficulty?: "casual" | "club" | "elite";
+  passes?: [number, number];
+  completedPasses?: [number, number];
+  passTarget?: number;
+  passTeam?: 0 | 1;
   players: Athlete[];
   ball: {
     x: number;
@@ -147,6 +154,9 @@ export function createFootball(
     possession: [0, 0],
     restartTeam: 0,
     keeperHold: 0,
+    difficulty: "club",
+    passes: [0, 0],
+    completedPasses: [0, 0],
   };
   if (training)
     s.players.forEach((p, i) => {
@@ -158,6 +168,30 @@ export function createFootball(
 function announce(s: FootballState, text: string) {
   s.message = text;
   s.eventId++;
+}
+
+/** Distance from a defender to the interior of a proposed passing lane. */
+function laneClearance(s: FootballState, from: Athlete, to: Athlete) {
+  const dx = to.x - from.x, dz = to.z - from.z;
+  const length = dx * dx + dz * dz || 1;
+  let clearance = 12;
+  for (const defender of s.players) {
+    if (defender.inactive || defender.team === from.team) continue;
+    const t = ((defender.x - from.x) * dx + (defender.z - from.z) * dz) / length;
+    if (t <= 0.08 || t >= 1.08) continue;
+    clearance = Math.min(clearance, Math.hypot(
+      defender.x - from.x - dx * t, defender.z - from.z - dz * t,
+    ));
+  }
+  return clearance;
+}
+
+function beginPass(s: FootballState, target: number) {
+  const team = s.players[s.ball.releasedBy!].team;
+  s.passes ??= [0, 0];
+  s.passes[team]++;
+  s.passTarget = target;
+  s.passTeam = team;
 }
 function kickoff(s: FootballState, team: 0 | 1) {
   if (s.training) team = 0;
@@ -191,6 +225,8 @@ function kickoff(s: FootballState, team: 0 | 1) {
   s.selected = team === 0 ? taker : 8;
   s.keeperHold = 0;
   s.charge = 0;
+  s.passTarget = undefined;
+  s.passTeam = undefined;
 }
 function nearest(s: FootballState, team: number, exclude = -1) {
   const candidates = s.players
@@ -213,7 +249,9 @@ function run(p: Athlete, tx: number, tz: number, speed: number, dt: number) {
   const response = 1 - Math.exp(-7 * dt);
   p.vx += (targetX - p.vx) * response;
   p.vz += (targetZ - p.vz) * response;
-  p.gait = (p.gait ?? 0) + Math.hypot(p.vx, p.vz) * dt * 2.8;
+  const actualSpeed = Math.hypot(p.vx, p.vz);
+  const strideLength = 1.6 + Math.min(1, actualSpeed / 8.6) * 2.2;
+  p.gait = (p.gait ?? 0) + actualSpeed * dt * Math.PI * 2 / strideLength;
   p.x = limit(p.x + p.vx * dt, -51, 51);
   p.z = limit(p.z + p.vz * dt, -33, 33);
   if (Math.hypot(p.vx, p.vz) > 0.2) {
@@ -245,6 +283,8 @@ function kick(
   b.vy = loft;
   b.owner = null;
   b.releasedBy = index;
+  s.passTarget = undefined;
+  s.passTeam = undefined;
   b.lastTouch = p.team;
   b.cooldown = 0.23;
   p.kick = 0.4;
@@ -265,6 +305,8 @@ export function stepFootball(
     score: [...old.score],
     shots: [...old.shots],
     possession: [...old.possession],
+    passes: [...(old.passes ?? [0, 0])],
+    completedPasses: [...(old.completedPasses ?? [0, 0])],
   };
   const b = s.ball;
   s.players.forEach((p) => {
@@ -272,6 +314,8 @@ export function stepFootball(
     p.tackle = Math.max(0, p.tackle - dt);
     p.skill = Math.max(0, p.skill - dt);
     p.receiving = Math.max(0, (p.receiving ?? 0) - dt);
+    p.decisionClock = Math.max(0, (p.decisionClock ?? 0) - dt);
+    p.save = Math.max(0, (p.save ?? 0) - dt);
     p.shielding = false;
   });
   if (s.phase !== "playing") {
@@ -448,7 +492,7 @@ export function stepFootball(
       } else if (input.pass || input.through || input.lob) {
         const ax = magnitude ? input.x / magnitude : Math.sin(owner.facing),
           az = magnitude ? input.z / magnitude : Math.cos(owner.facing);
-        const target = s.players
+      const target = s.players
           .map((p, i) => ({ p, i }))
           .filter(
             ({ p, i }) =>
@@ -459,6 +503,7 @@ export function stepFootball(
               const d = dist(owner, p) || 1;
               return (
                 d - ((ax * (p.x - owner.x) + az * (p.z - owner.z)) / d) * 25
+                + Math.max(0, 1.6 - laneClearance(s, owner, p)) * 6
               );
             };
             return rank(a.p) - rank(c.p);
@@ -477,6 +522,7 @@ export function stepFootball(
             input.through ? 23 : 18,
             input.lob ? 7.2 : 0.6,
           );
+          beginPass(s, target.i);
           s.selected = target.i;
           s.charge = 0;
           announce(
@@ -494,6 +540,24 @@ export function stepFootball(
       kick(s, b.owner, -54, Math.sin(s.elapsed * 1.7) * 2.8, 25, 1.4);
       s.shots[1]++;
       announce(s, "The visitors shoot. The keeper sets himself.");
+    } else if (owner.team === 1 && b.cooldown === 0 && owner.decisionClock === 0) {
+      // A decision cadence prevents frame-perfect CPU reactions and pass spam.
+      owner.decisionClock = s.difficulty === "casual" ? 1.6 : s.difficulty === "elite" ? 0.65 : 1;
+      const pressure = s.players.some(p => !p.inactive && p.team === 0 && dist(p, owner) < 4.5);
+      const options = s.players.map((p, i) => ({p, i, lane: laneClearance(s, owner, p)}))
+        .filter(({p, i, lane}) => !p.inactive && p.team === 1 && !p.keeper && i !== b.owner
+          && dist(p, owner) > 5 && dist(p, owner) < 30 && lane > 1.35)
+        .sort((a, c) => {
+          const rank = (q: typeof a) => (owner.x - q.p.x) * 0.65 + q.lane * 1.2 - dist(q.p, owner) * 0.14;
+          return rank(c) - rank(a);
+        });
+      const receiver = options[0];
+      if (receiver && (pressure || receiver.p.x < owner.x - 5)) {
+        kick(s, b.owner, receiver.p.x + receiver.p.vx * 0.35,
+          receiver.p.z + receiver.p.vz * 0.35, 19, 0.65);
+        beginPass(s, receiver.i);
+        announce(s, `The visitors find ${receiver.p.name} with a pass.`);
+      }
     }
     // Shielding and skill windows protect the ball; computer tackles are not instantaneous.
     if (
@@ -512,13 +576,16 @@ export function stepFootball(
           dist(p, owner) < 1.15 &&
           p.tackle === 0;
         p.pressure = close ? (p.pressure ?? 0) + dt : 0;
-        if (p.pressure >= 0.22 && challenger === -1) challenger = i;
+        const reaction = p.team === 0 ? 0.22 : s.difficulty === "casual" ? 0.5 : s.difficulty === "elite" ? 0.18 : 0.22;
+        if (p.pressure >= reaction && challenger === -1) challenger = i;
       });
       if (challenger !== -1) {
         s.players[challenger].tackle = 1.3;
         b.owner = challenger;
         b.lastTouch = s.players[challenger].team;
         b.cooldown = 0.7;
+        s.passTarget = undefined;
+        s.passTeam = undefined;
         s.charge = 0;
         if (b.lastTouch === 0) s.selected = challenger;
         announce(s, "A challenge wins the ball.");
@@ -620,9 +687,16 @@ export function stepFootball(
                 b.y < 0.65,
             );
       if (catcher !== -1) {
+        if (s.passTarget !== undefined && s.passTeam === s.players[catcher].team) {
+          s.completedPasses ??= [0, 0];
+          s.completedPasses[s.passTeam]++;
+        }
+        s.passTarget = undefined;
+        s.passTeam = undefined;
         b.owner = catcher;
         s.players[catcher].touchClock = 0;
         s.players[catcher].receiving = 0.3;
+        if (s.players[catcher].keeper) s.players[catcher].save = 0.65;
         b.cooldown = 0.55;
         b.lastTouch = s.players[catcher].team;
         s.keeperHold = 0;
@@ -661,6 +735,8 @@ export function stepFootball(
       s.players[taker].x = b.x;
       s.players[taker].z = b.z;
       b.owner = taker;
+      s.passTarget = undefined;
+      s.passTeam = undefined;
       b.lastTouch = restart;
       b.cooldown = 1.3;
       b.y = 0.22;

@@ -2,25 +2,32 @@ import * as THREE from "three";
 import { FootballState } from "./football-3d";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { createFootballActor } from "./football-actor";
-export type CameraMode = "follow" | "broadcast" | "close";
+import type { GraphicsQuality } from "./football-session";
+export type CameraMode = "follow" | "broadcast" | "close" | "telecast";
 export async function createFootballScene(
   host: HTMLDivElement,
   onContextLost: () => void,
+  initialQuality: GraphicsQuality = "auto",
 ) {
   const template = await new GLTFLoader().loadAsync(
     "/assets/football/player.glb",
   );
   const renderer = new THREE.WebGLRenderer({
-    antialias: true,
+    antialias: false,
     alpha: false,
     powerPreference: "high-performance",
   });
-  renderer.setPixelRatio(
-    Math.min(window.devicePixelRatio, host.clientWidth < 700 ? 1 : 1.5),
-  );
+  let quality = initialQuality, automaticScale = 1;
+  function applyGraphics() {
+    const scale = quality === "performance" ? 0.7 : quality === "high" ? 1.5 : quality === "auto" ? automaticScale : 1;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, scale));
+    renderer.shadowMap.enabled = quality === "high";
+    renderer.domElement.dataset.graphicsQuality = quality;
+    renderer.domElement.dataset.renderScale = String(scale);
+  }
+  applyGraphics();
   renderer.setSize(host.clientWidth, host.clientHeight);
-  renderer.shadowMap.enabled = host.clientWidth >= 700;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.2;
@@ -36,8 +43,8 @@ export async function createFootballScene(
   };
   renderer.domElement.addEventListener("webglcontextlost", contextLost);
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color("#a6c6d5");
-  scene.fog = new THREE.Fog("#a6c6d5", 125, 230);
+  scene.background = new THREE.Color("#52677b");
+  scene.fog = new THREE.Fog("#52677b", 115, 220);
   const camera = new THREE.PerspectiveCamera(
     48,
     host.clientWidth / host.clientHeight,
@@ -45,8 +52,8 @@ export async function createFootballScene(
     280,
   );
   camera.position.set(0, 24, 34);
-  scene.add(new THREE.HemisphereLight(0xddefff, 0x345728, 2.5));
-  const sun = new THREE.DirectionalLight(0xffedcd, 3);
+  scene.add(new THREE.HemisphereLight(0xe3efff, 0x293c27, 2.2));
+  const sun = new THREE.DirectionalLight(0xffedcd, 2.8);
   sun.position.set(-35, 65, -20);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
@@ -226,10 +233,23 @@ export async function createFootballScene(
         75,
       );
   }
+  // A single instanced, alpha-tested crowd surface avoids hundreds of box
+  // silhouettes and keeps the stands inexpensive on mobile GPUs.
+  const crowdCanvas = document.createElement("canvas");
+  crowdCanvas.width = 64; crowdCanvas.height = 128;
+  const crowdContext = crowdCanvas.getContext("2d");
+  if (crowdContext) {
+    crowdContext.fillStyle = "#f0c8ad";
+    crowdContext.beginPath(); crowdContext.ellipse(32, 22, 12, 15, 0, 0, Math.PI * 2); crowdContext.fill();
+    crowdContext.fillStyle = "#ffffff";
+    crowdContext.beginPath(); crowdContext.moveTo(16, 42); crowdContext.lineTo(48, 42); crowdContext.lineTo(58, 87); crowdContext.lineTo(6, 87); crowdContext.fill();
+    crowdContext.fillStyle = "#253543"; crowdContext.fillRect(15, 83, 15, 44); crowdContext.fillRect(35, 83, 15, 44);
+  }
+  const crowdTexture = new THREE.CanvasTexture(crowdCanvas);
+  crowdTexture.colorSpace = THREE.SRGBColorSpace;
   const crowd = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(0.58, 1.05, 0.6),
-    mat("#ffffff"),
-    600,
+    new THREE.PlaneGeometry(0.68, 1.25),
+    new THREE.MeshBasicMaterial({map: crowdTexture, alphaTest: 0.4, side: THREE.DoubleSide}), 600,
   );
   const dummy = new THREE.Object3D();
   const colour = new THREE.Color();
@@ -280,6 +300,19 @@ export async function createFootballScene(
   );
   ring.rotation.x = -Math.PI / 2;
   scene.add(ring);
+  const receiverRing = new THREE.Mesh(
+    new THREE.RingGeometry(0.85, 0.94, 32),
+    new THREE.MeshBasicMaterial({color: 0x9df6e0, side: THREE.DoubleSide, transparent: true, opacity: 0.85}),
+  );
+  receiverRing.rotation.x = -Math.PI / 2;
+  scene.add(receiverRing);
+  // Ground contacts stay readable with shadows disabled on lower-power devices.
+  const contacts = new THREE.InstancedMesh(
+    new THREE.CircleGeometry(0.5, 12),
+    new THREE.MeshBasicMaterial({color: 0x102b1b, transparent: true, opacity: 0.24, depthWrite: false}), 22,
+  );
+  scene.add(contacts);
+  const contactTransform = new THREE.Object3D();
   const ballShadow = new THREE.Mesh(
     new THREE.CircleGeometry(0.35, 20),
     new THREE.MeshBasicMaterial({
@@ -296,6 +329,7 @@ export async function createFootballScene(
   let lastState: FootballState | null = null;
   let lastMode: CameraMode | null = null;
   let resized = true;
+  let measuredFrames = 0, measuredTime = 0;
   const resize = new ResizeObserver(() => {
     if (disposed || !host.clientHeight) return;
     camera.aspect = host.clientWidth / host.clientHeight;
@@ -305,6 +339,13 @@ export async function createFootballScene(
   });
   resize.observe(host);
   return {
+    setGraphics(next: GraphicsQuality) {
+      quality = next;
+      automaticScale = 1;
+      applyGraphics();
+      renderer.setSize(host.clientWidth, host.clientHeight);
+      resized = true;
+    },
     render(s: FootballState, mode: CameraMode, dt: number, active = true) {
       if (disposed) return;
       if (
@@ -330,7 +371,13 @@ export async function createFootballScene(
           i === s.selected ? s.charge : 0,
           celebrate,
         );
+        contactTransform.position.set(p.x, 0.05, p.z);
+        contactTransform.rotation.set(-Math.PI / 2, 0, 0);
+        contactTransform.scale.setScalar(p.inactive ? 0 : 1);
+        contactTransform.updateMatrix();
+        contacts.setMatrixAt(i, contactTransform.matrix);
       });
+      contacts.instanceMatrix.needsUpdate = true;
       renderer.domElement.dataset.playerPose = playerGroups[s.selected].pose();
       ball.position.set(s.ball.x, Math.max(0.14, s.ball.y - 0.08), s.ball.z);
       if (active) {
@@ -341,9 +388,19 @@ export async function createFootballScene(
       ballShadow.scale.setScalar(1 + Math.max(0, s.ball.y - 0.22) * 0.2);
       const selected = s.players[s.selected];
       ring.position.set(selected.x, 0.06, selected.z);
+      const receiver = s.passTarget === undefined ? null : s.players[s.passTarget];
+      receiverRing.visible = Boolean(receiver && s.passTeam === 0 && s.ball.owner === null);
+      if (receiver) receiverRing.position.set(receiver.x, 0.065, receiver.z);
       if (mode === "broadcast") {
         desired.set(0, 66, 88);
         look.set(0, 0, 0);
+      } else if (mode === "telecast") {
+        // Stable side-line rail: lead the play, retain nearby passing options,
+        // and avoid rotating movement directions when possession changes.
+        const focusX = THREE.MathUtils.clamp(s.ball.x * 0.8 + selected.x * 0.2, -36, 36);
+        const focusZ = THREE.MathUtils.clamp(s.ball.z * 0.55, -15, 15);
+        desired.set(focusX + 1, 24, focusZ + 36);
+        look.set(focusX, 0, focusZ);
       } else {
         const x = THREE.MathUtils.clamp(s.ball.x, -40, 40),
           z = THREE.MathUtils.clamp(s.ball.z, -22, 22);
@@ -354,16 +411,29 @@ export async function createFootballScene(
         );
         look.set(x, 0, z);
       }
-      camera.position.lerp(desired, Math.min(1, dt * 4));
+      camera.position.lerp(desired, 1 - Math.exp(-dt * 4));
       camera.lookAt(look);
       renderer.render(scene, camera);
+      renderer.domElement.dataset.drawCalls = String(renderer.info.render.calls);
+      if (active && dt > 0 && quality === "auto") {
+        measuredTime += dt;
+        measuredFrames++;
+        if (measuredFrames >= 45) {
+          if (measuredTime / measuredFrames > 0.035 && automaticScale > 0.75) {
+            automaticScale = 0.75;
+            applyGraphics();
+            renderer.setSize(host.clientWidth, host.clientHeight);
+          }
+          measuredFrames = measuredTime = 0;
+        }
+      }
       lastState = s;
       lastMode = mode;
       resized = false;
     },
     dispose() {
       if (disposed) return;
-      disposed = true;console.info("RWOG_DISPOSE_START");
+      disposed = true;
       resize.disconnect();
       renderer.domElement.removeEventListener("webglcontextlost", contextLost);
       const geometries = new Set<THREE.BufferGeometry>(),
@@ -385,9 +455,15 @@ export async function createFootballScene(
       geometries.forEach((g) => g.dispose());
       materials.forEach((m) => m.dispose());
       textures.forEach((t) => t.dispose());
-      console.info("RWOG_DISPOSE_OBJECTS");renderer.dispose();console.info("RWOG_DISPOSE_RENDERER");
-      renderer.forceContextLoss();console.info("RWOG_DISPOSE_CONTEXT");
+      renderer.dispose();
+      // dispose() frees GPU resources. Forcing a synthetic context loss here
+      // can block the driver's command queue during a normal UI close/retry.
       renderer.domElement.remove();
+      template.scene.traverse((object) => {
+        const mesh = object as THREE.Mesh;
+        mesh.geometry?.dispose();
+        if (mesh.material) (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).forEach(m => m.dispose());
+      });
     },
   };
 }

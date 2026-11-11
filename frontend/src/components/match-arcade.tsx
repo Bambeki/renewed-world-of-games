@@ -24,16 +24,15 @@ export default function MatchArcade({
   const keys = useRef(new Set<string>());
   const pitch = useRef<HTMLDivElement>(null);
   const stateRef = useRef(state);
-  useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
+  // The simulation ref is authoritative. A delayed React HUD commit must not
+  // copy an older frame back into it and rewind the match clock.
   useEffect(() => {
     if (!running) return;
     let frame = 0;
     let previous = 0;
     let renderAt = 0;
     function tick(now: number) {
-      const dt = previous ? Math.min((now - previous) / 1000, 0.05) : 0;
+      const dt = previous ? Math.max(0, Math.min((now - previous) / 1000, 0.05)) : 0;
       previous = now;
       const k = keys.current;
       const input = {

@@ -1,6 +1,6 @@
 # Browser football: character and control revision
 
-The target stays **in the browser**, as requested on 8 November 2026. This increment is isolated on `feature/football-browser-quality`, based on the reviewed multi-game candidate. Work here focuses on football. The other games and manager database/API are preserved.
+The target stays **in the browser**, as requested on 8 November 2026. The 11 November matchday revision adds an immersive broadcast interface, TV camera, graphics choices, CPU passing/difficulty, saved-match recovery and a staging package; see [verification](VERIFICATION.md) and [deployment](../production/README.md). This increment is isolated on `feature/football-browser-quality`, based on the reviewed multi-game candidate. Work here focuses on football. The other games and manager database/API are preserved.
 
 The previous build's block-body renderer and simple limb rotation were insufficient for the requested football presentation. Passing engine tests did not establish good animation, believable ball control or EA SPORTS FC-level quality. This revision replaces that rendering path rather than describing it as finished.
 

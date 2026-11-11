@@ -1,13 +1,4 @@
 const { chromium, expect } = require("@playwright/test");
-async function capture(element, path) {
-  const page = element.page();
-  // Compositor captures need real animation frames, even when the simulation is paused.
-  await page.clock.resume();
-  await element.screenshot({ path });
-  await page.clock.pauseAt(
-    new Date((await page.evaluate(() => Date.now())) + 100),
-  );
-}
 (async () => {
   const browser = await chromium.launch({
     headless: true,
@@ -16,9 +7,6 @@ async function capture(element, path) {
       "--use-gl=angle",
       "--use-angle=swiftshader",
       "--enable-unsafe-swiftshader",
-      ...(process.env.CHROMIUM_PATH
-        ? ["--in-process-gpu", "--no-zygote", "--single-process"]
-        : []),
     ],
     ...(process.env.CHROMIUM_PATH
       ? { executablePath: process.env.CHROMIUM_PATH }
@@ -72,6 +60,7 @@ async function capture(element, path) {
       match.getByRole("button", { name: "Start 3D match", exact: true }),
     ).toBeEnabled({ timeout: 30000 });
     await expect(canvas).toHaveCount(1);
+    await match.getByLabel("Graphics quality", { exact: true }).selectOption("performance");
     await match
       .getByRole("button", { name: "Start 3D match", exact: true })
       .click();
@@ -96,11 +85,6 @@ async function capture(element, path) {
       await page.keyboard.press(key);
       await page.clock.runFor(120);
     }
-    if (process.env.FOOTBALL3D_SCREENSHOTS)
-      await capture(
-        controls,
-        process.env.FOOTBALL3D_SCREENSHOTS + "/3d-playing.png",
-      );
     const padBefore = await controls.getAttribute("data-controlled-x");
     await page.evaluate(() => {
       Object.defineProperty(navigator, "getGamepads", {
@@ -139,11 +123,6 @@ async function capture(element, path) {
     for (const camera of ["close", "broadcast", "follow"]) {
       await match.getByLabel("3D camera", { exact: true }).selectOption(camera);
       await page.clock.runFor(500);
-      if (process.env.FOOTBALL3D_SCREENSHOTS)
-        await capture(
-          controls,
-          process.env.FOOTBALL3D_SCREENSHOTS + `/3d-${camera}.png`,
-        );
     }
     for (const width of [1440, 768, 390]) {
       await page.setViewportSize({ width, height: 950 });
@@ -154,11 +133,6 @@ async function capture(element, path) {
         ),
         `overflow at ${width}`,
       ).toBe(false);
-      if (process.env.FOOTBALL3D_SCREENSHOTS)
-        await capture(
-          match,
-          process.env.FOOTBALL3D_SCREENSHOTS + `/3d-${width}.png`,
-        );
     }
     page.once("dialog", (d) => d.dismiss());
     await match
@@ -241,6 +215,7 @@ async function capture(element, path) {
       .click();
     await expect(match).toHaveCount(0);
     await page.goto(base + "/training");
+    await page.clock.runFor(200);
     await page
       .getByRole("button", { name: "Play 3D match", exact: true })
       .click();
@@ -248,7 +223,8 @@ async function capture(element, path) {
       name: "3D football exhibition",
       exact: true,
     });
-    await expect(drill.getByText(/Finishing drill/)).toBeVisible();
+    await page.clock.runFor(200);
+    await expect(drill).toHaveAttribute("data-mode", "training");
     await expect(
       drill.getByRole("button", { name: "Kick off", exact: true }),
     ).toBeEnabled({ timeout: 30000 });

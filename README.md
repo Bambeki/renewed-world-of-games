@@ -1,5 +1,13 @@
 # Renewed World of Games
 
+## Football matchday update
+
+The football browser-quality branch now has an immersive RWG match screen, a TV broadcast camera, four graphics settings, distance-synchronized skinned locomotion, clear passing-receiver feedback, opponent passing, three challenge levels, exhibition statistics and device save/resume. Open **Matches → Play 3D match** with a saved XI. Phone landscape uses controls over the pitch; portrait remains available.
+
+Existing authentication, squad details, manager lineups, fixtures, standings, transfers, Ludo and campaigns are preserved. Live exhibition scores remain local and do not change league standings. EA SPORTS FC's public gameplay notes are a design reference; RWG uses its own interface and CC0 character/animation sources.
+
+See [football verification](docs/football-browser-quality/VERIFICATION.md) for actual checks and [deployment candidate](docs/production/README.md) for Docker/TLS, migrations, environment checks, backups and the remaining launch gates. A polished interface is not a claim that all commercial football features or console-quality animation are complete.
+
 A collection of browser games built with Next.js, React, TypeScript and a NestJS/PostgreSQL football-management API.
 
 This branch is a **playtest release candidate**, not a production or console-quality release. It preserves the football manager and Ludo, adds a focused 3D football drill, and introduces two original single-player campaigns.

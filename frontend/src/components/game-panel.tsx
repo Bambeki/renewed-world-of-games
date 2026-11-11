@@ -173,7 +173,7 @@ export default function GamePanel({ mode = "overview" }: { mode?: string }) {
           <h1>{team.name}</h1>
           <p>Your club. Your decisions. Your season.</p>
         </div>
-        <span className="badge">Investor MVP · Single manager</span>
+        <span className="badge">FOUNDERS LEAGUE · CLUB CAREER</span>
       </header>
       {error && (
         <p className="alert" role="alert">
@@ -210,12 +210,12 @@ export default function GamePanel({ mode = "overview" }: { mode?: string }) {
         </article>
       </div>
       {(mode === "matches" || mode === "training") && (
-        <section>
-          <p className="eyebrow">TAKE CONTROL</p>
+        <section className="football-launch">
+          <p className="eyebrow">RWG FOOTBALL · MATCHDAY</p>
           <h2>
             {mode === "training"
               ? "Football training pitch"
-              : "Play 3D football"}
+              : "YOUR XI. YOUR MOMENT."}
           </h2>
           <p>
             {mode === "training"
@@ -241,13 +241,14 @@ export default function GamePanel({ mode = "overview" }: { mode?: string }) {
             <small>
               {mode === "training"
                 ? "This solo drill uses your club's selected attacker. The score does not affect your league. Requires a saved XI."
-                : "“Play live exhibition” opens the simple 2D mode. “Play 3D match” opens the new 11-a-side prototype. Requires a saved XI."}
+                : "11 v 11 · Broadcast camera · Three opponent levels · Keyboard, touch & standard gamepad. A saved starting XI is required."}
             </small>
           </p>
         </section>
       )}
       {threeOpen && (
         <Match3D
+          storageKey={team.id}
           training={mode === "training"}
           home={team.name}
           away={

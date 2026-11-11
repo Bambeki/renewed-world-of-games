@@ -4,7 +4,7 @@ The current candidate supports an investor demonstration and invited playtests. 
 
 | Priority | Work | Evidence required to close |
 | --- | --- | --- |
-| P0 | Resolve remaining runtime dependency advisories and review the authentication/session threat model | Clean production dependency scan or documented, reviewed mitigation for each finding; registration/login abuse controls, session expiry/recovery and secret handling verified |
+| P0 | Keep the patched runtime dependency scan clean and complete the authentication/session review | Clean production dependency scan or documented, reviewed mitigation for each finding; registration/login limits, production secret checks and configured expiry are implemented; shared limits, account recovery/deletion and session review still need verification |
 | P0 | Verify production operations before inviting public accounts | Reproducible staging deployment, TLS/config validation, database backup **and restore** exercise, error monitoring, rollback and ownership assigned |
 | P0 | Verify game controls on target hardware | Actual Mac Safari, Chrome, iPhone and Android runs; physical controller if advertised; recover from focus changes, graphics loss and refresh without losing account data |
 | P0 | Evaluate core football feel with players | Recorded sessions showing ordinary users can dribble, pass, tackle and score without coaching; address input latency, camera visibility, keeper balance and movement issues found |

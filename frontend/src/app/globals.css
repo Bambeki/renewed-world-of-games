@@ -374,3 +374,35 @@ body {
     padding: 10px 8px;
   }
 }
+
+/* Original RWG matchday entry. The live match has its own immersive surface. */
+.game section.football-launch {
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 90% 80%, #4a6f223d, transparent 58%), linear-gradient(115deg, #1b2827, #111a23 65%);
+  padding: clamp(24px, 4vw, 48px);
+  border: 1px solid #b6da7a40;
+  border-radius: 6px;
+}
+.football-launch::after {
+  content: "";
+  position: absolute;
+  right: -15px;
+  top: -60px;
+  width: 180px;
+  height: 350px;
+  border-left: 40px solid #d2ff5a0a;
+  border-right: 60px solid #d2ff5a0b;
+  transform: skew(-22deg);
+  pointer-events: none;
+}
+.game .football-launch h2 {
+  font-family: Impact, 'Arial Narrow', sans-serif;
+  font-size: clamp(30px, 4.5vw, 62px);
+  letter-spacing: 1px;
+  line-height: 1.06;
+  font-style: italic;
+  max-width: 650px;
+}
+.football-launch p { max-width: 640px; }
+.game .football-launch > button:first-of-type { background: #d2ff5a; border-radius: 2px; padding: 13px 24px; color: #11190a; }

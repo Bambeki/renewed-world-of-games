@@ -40,6 +40,8 @@ const { chromium, expect } = require("@playwright/test");
         },
       }).then((r) => r.json()),
     );
+    // Install before the mounted match schedules its first animation frame.
+    await page.clock.install();
     await page
       .getByRole("button", { name: "Play live exhibition", exact: true })
       .click();
@@ -51,7 +53,6 @@ const { chromium, expect } = require("@playwright/test");
     await expect(match).toBeVisible();
     await expect(match.getByTestId("home-score")).toHaveText("0");
     await expect(match.getByTestId("match-clock")).toContainText("Paused");
-    await page.clock.install();
     await match
       .getByRole("button", { name: "Start match", exact: true })
       .click();

@@ -29,8 +29,7 @@ export function createFootballActor(template: GLTF, index: number) {
     if (!mesh.isSkinnedMesh) return;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    // Each skeleton must get its own bounds as its limbs animate.
-    mesh.frustumCulled = false;
+    mesh.frustumCulled = true;
     mesh.geometry = mesh.geometry.clone();
     const positions = mesh.geometry.attributes.position;
     const colors = new Float32Array(positions.count * 3);
@@ -122,12 +121,22 @@ export function createFootballActor(template: GLTF, index: number) {
       .setEffectiveWeight(name === "Idle" ? 1 : 0);
   });
   mixer.update(0.00001);
+  body.updateWorldMatrix(true, true);
+  body.traverse((object) => {
+    const mesh = object as THREE.SkinnedMesh;
+    if (!mesh.isSkinnedMesh) return;
+    mesh.computeBoundingSphere();
+    // Conservative bounds include the full kick/celebration envelope. They allow
+    // off-screen players to be culled without recalculating every skinned vertex.
+    if (mesh.boundingSphere) mesh.boundingSphere.radius *= 2.4;
+  });
   const cleanPose = [...bones.values()].map((bone) => ({
     bone,
     rotation: bone.quaternion.clone(),
   }));
   const weights = [1, 0, 0, 0];
   let heading = team ? -Math.PI / 2 : Math.PI / 2;
+  let idleClock = 0;
   const axis = new THREE.Vector3(),
     parentRotation = new THREE.Quaternion(),
     delta = new THREE.Quaternion();
@@ -164,6 +173,8 @@ export function createFootballActor(template: GLTF, index: number) {
       charge: number,
       celebrate: boolean,
     ) {
+      root.visible = !player.inactive;
+      if (player.inactive) return;
       const speed = Math.hypot(player.vx, player.vz);
       const target =
         speed < 0.15
@@ -179,21 +190,20 @@ export function createFootballActor(template: GLTF, index: number) {
                   Math.min(1, (speed - 5) / 3.5),
                 ];
       const response = 1 - Math.exp(-14 * dt);
+      idleClock += dt;
+      const stridePhase = ((player.gait ?? 0) / (Math.PI * 2)) % 1;
       actions.forEach((action, i) => {
         weights[i] += (target[i] - weights[i]) * response;
         action.setEffectiveWeight(weights[i]);
-        action.setEffectiveTimeScale(
-          i === 0
-            ? 1
-            : Math.max(0.3, Math.min(1.8, speed / [1, 1.65, 4.6, 7.4][i])),
-        );
+        // All locomotion clips share one travelled-distance phase. Blending
+        // walk/jog/sprint must not blend opposite feet or run while stationary.
+        action.time = i === 0 ? idleClock % action.getClip().duration : stridePhase * action.getClip().duration;
       });
       // Mixer bindings skip identical values. Restore the clean animation pose first,
       // otherwise procedural kick/shield offsets could accumulate on constant tracks.
       cleanPose.forEach(({ bone, rotation }) => bone.quaternion.copy(rotation));
-      mixer.update(dt);
+      mixer.update(0);
       cleanPose.forEach(({ bone, rotation }) => rotation.copy(bone.quaternion));
-      root.visible = !player.inactive;
       root.position.set(player.x, 0.012, player.z);
       const turn = Math.atan2(
         Math.sin(player.facing - heading),
@@ -235,6 +245,12 @@ export function createFootballActor(template: GLTF, index: number) {
       if (player.keeper) {
         rotate("upperarm_l", -0.22, "z");
         rotate("upperarm_r", 0.22, "z");
+        if ((player.save ?? 0) > 0) {
+          const gather = Math.sin(Math.min(1, (player.save ?? 0) / 0.65) * Math.PI);
+          rotate("upperarm_l", -gather * 0.8);
+          rotate("upperarm_r", -gather * 0.8);
+          rotate("spine_02", gather * 0.17);
+        }
       }
       if (celebrate) {
         rotate("upperarm_l", -2.1, "z");

@@ -1,12 +1,4 @@
 const { chromium, expect } = require("@playwright/test");
-const fs = require("node:fs");
-async function capture(element, path) {
-  await element.evaluate((el) =>
-    el.scrollIntoView({ block: "center", behavior: "instant" }),
-  );
-  const clip = await element.boundingBox();
-  await element.page().screenshot({ path, clip });
-}
 (async () => {
   const browser = await chromium.launch({
     headless: true,
@@ -15,9 +7,6 @@ async function capture(element, path) {
       "--use-gl=angle",
       "--use-angle=swiftshader",
       "--enable-unsafe-swiftshader",
-      ...(process.env.CHROMIUM_PATH
-        ? ["--in-process-gpu", "--no-zygote", "--single-process"]
-        : []),
     ],
     ...(process.env.CHROMIUM_PATH
       ? { executablePath: process.env.CHROMIUM_PATH }
@@ -69,6 +58,7 @@ async function capture(element, path) {
       name: "3D match controls",
       exact: true,
     });
+    await region.getByLabel("Graphics quality", { exact: true }).selectOption("performance");
     await expect(
       region.getByRole("img", { name: "Live tactical minimap", exact: true }),
     ).toBeVisible();
@@ -159,48 +149,6 @@ async function capture(element, path) {
     expect(
       await controls.locator("canvas").getAttribute("data-player-pose"),
     ).toBe(frozenPose);
-    if (process.env.FOOTBALL3D_SCREENSHOTS) {
-      fs.mkdirSync(process.env.FOOTBALL3D_SCREENSHOTS, { recursive: true });
-      page.once("dialog", (dialog) => dialog.accept());
-      await region
-        .getByRole("button", { name: "Close 3D match", exact: true })
-        .click();
-      await page.clock.resume();
-      await page.setViewportSize({ width: 1440, height: 1000 });
-      await page.goto(base + "/matches");
-      await page
-        .getByRole("button", { name: "Play 3D match", exact: true })
-        .click();
-      await expect(
-        region.getByRole("button", { name: "Start 3D match", exact: true }),
-      ).toBeEnabled({ timeout: 30000 });
-      await region
-        .getByLabel("3D camera", { exact: true })
-        .selectOption("close");
-      await region
-        .getByRole("button", { name: "Kick off", exact: true })
-        .click();
-      await expect(controls).toHaveAttribute("data-phase", "playing", {
-        timeout: 10000,
-      });
-      await page.keyboard.down("d");
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      await page.keyboard.up("d");
-      await capture(
-        controls,
-        process.env.FOOTBALL3D_SCREENSHOTS + "/humanoid-playing.png",
-      );
-      await region
-        .getByRole("button", { name: "Pause 3D match", exact: true })
-        .click();
-      for (const width of [1440, 768, 390]) {
-        await page.setViewportSize({ width, height: 950 });
-        await capture(
-          controls,
-          process.env.FOOTBALL3D_SCREENSHOTS + `/humanoid-${width}.png`,
-        );
-      }
-    }
     expect(errors).toEqual([]);
     console.log(
       "PASS football quality Chromium: skinned asset and real bone animation, diagonal analogue-stick movement, minimap, paused skeleton, asset-failure retry, training shot, close camera and 3 widths; no page/shader/5xx errors.",

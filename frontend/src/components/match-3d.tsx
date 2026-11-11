@@ -9,6 +9,10 @@ import {
   stepFootball,
 } from "@/lib/football-3d";
 import type { CameraMode } from "@/lib/football-scene";
+import {
+  decodeFootballSave, decodeFootballSettings, defaultFootballSettings,
+  encodeFootballSave, type FootballSettings,
+} from "@/lib/football-session";
 import styles from "./match-3d.module.css";
 type Props = {
   training?: boolean;
@@ -16,6 +20,7 @@ type Props = {
   away: string;
   roster: { name: string; overall: number }[];
   formation: string;
+  storageKey?: string;
   onClose: () => void;
 };
 export default function Match3D({
@@ -24,6 +29,7 @@ export default function Match3D({
   away,
   roster,
   formation,
+  storageKey,
   onClose,
 }: Props) {
   const [initial] = useState(() => createFootball(roster, formation, training));
@@ -42,13 +48,78 @@ export default function Match3D({
   const host = useRef<HTMLDivElement>(null),
     viewport = useRef<HTMLDivElement>(null),
     container = useRef<HTMLElement>(null);
-  const cameraRef = useRef<CameraMode>("follow");
-  const [camera, setCamera] = useState<CameraMode>("follow");
+  const cameraRef = useRef<CameraMode>("telecast");
+  const [camera, setCamera] = useState<CameraMode>("telecast");
+  const settingsRef = useRef<FootballSettings>({...defaultFootballSettings});
+  const [settings, setSettings] = useState<FootballSettings>({...defaultFootballSettings});
+  const sceneRef = useRef<Awaited<ReturnType<typeof import("@/lib/football-scene").createFootballScene>> | null>(null);
+  const [saved, setSaved] = useState<ReturnType<typeof decodeFootballSave>>(null);
+  const [saveNotice, setSaveNotice] = useState("");
+  const signature = JSON.stringify([home, away, formation, training, roster]);
+  const saveKey = storageKey ? `rwog.football.match.v1:${storageKey}:${training ? "training" : "exhibition"}` : null;
   const [controller, setController] = useState(false);
   const [stick, setStick] = useState({ x: 0, z: 0 });
   const stickPointer = useRef<number | null>(null);
   const audio = useRef<AudioContext | null>(null);
   const [sound, setSound] = useState(false);
+  function saveCheckpoint() {
+    if (!saveKey || current.current.elapsed === 0) return;
+    try {
+      const raw = encodeFootballSave(current.current, signature);
+      localStorage.setItem(saveKey, raw);
+      setSaved(decodeFootballSave(raw, signature));
+      setSaveNotice("");
+    } catch { setSaveNotice("Device storage is unavailable. Keep this tab open to retain the match."); }
+  }
+  function changeSettings(next: FootballSettings) {
+    const oldGraphics = settingsRef.current.graphics;
+    settingsRef.current = next;
+    setSettings(next);
+    cameraRef.current = next.camera;
+    setCamera(next.camera);
+    current.current.difficulty = next.difficulty;
+    if (oldGraphics !== next.graphics) sceneRef.current?.setGraphics(next.graphics);
+    try { localStorage.setItem("rwog.football.settings.v1", JSON.stringify(next)); } catch {}
+  }
+  useEffect(() => {
+    try {
+      const next = decodeFootballSettings(localStorage.getItem("rwog.football.settings.v1"));
+      settingsRef.current = next;
+      setSettings(next);
+      cameraRef.current = next.camera;
+      setCamera(next.camera);
+      current.current.difficulty = next.difficulty;
+      if (saveKey) {
+        const raw = localStorage.getItem(saveKey), checkpoint = decodeFootballSave(raw, signature);
+        setSaved(checkpoint);
+        if (raw && !checkpoint) setSaveNotice("The previous save is incompatible with this lineup. Start a new match.");
+      }
+    } catch {}
+    const timer = window.setInterval(() => saveCheckpoint(), 2000);
+    const leave = () => saveCheckpoint();
+    window.addEventListener("pagehide", leave);
+    return () => { window.clearInterval(timer); window.removeEventListener("pagehide", leave); };
+    // Save the latest simulation ref; HUD updates must not restart this interval.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saveKey, signature]);
+  useEffect(() => {
+    const oldOverflow = document.body.style.overflow, opener = document.activeElement as HTMLElement | null;
+    document.body.style.overflow = "hidden";
+    const trap = (event: KeyboardEvent) => {
+      if (event.key !== "Tab" || !container.current) return;
+      const elements = [...container.current.querySelectorAll<HTMLElement>("button:not(:disabled), select:not(:disabled), input:not(:disabled), [tabindex='0']")]
+        .filter(el => el.getClientRects().length > 0);
+      const first = elements[0], last = elements.at(-1);
+      if (!first || !last) return;
+      if (event.shiftKey && (document.activeElement === first || !container.current.contains(document.activeElement))) {
+        event.preventDefault(); last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !container.current.contains(document.activeElement))) {
+        event.preventDefault(); first.focus();
+      }
+    };
+    document.addEventListener("keydown", trap);
+    return () => { document.body.style.overflow = oldOverflow; document.removeEventListener("keydown", trap); opener?.focus(); };
+  }, []);
   function clear() {
     keys.current.clear();
     input.current = neutralInput();
@@ -80,6 +151,7 @@ export default function Match3D({
     runningRef.current = false;
     setRunning(false);
     clear();
+    saveCheckpoint();
     setSnapshot({ ...current.current });
   }
   function toggle() {
@@ -108,7 +180,10 @@ export default function Match3D({
       return;
     pause();
     current.current = createFootball(roster, formation, training);
+    current.current.difficulty = settingsRef.current.difficulty;
     setSnapshot(current.current);
+    setSaved(null);
+    try { if (saveKey) localStorage.removeItem(saveKey); } catch {}
   }
   async function toggleSound() {
     if (audio.current) {
@@ -165,12 +240,14 @@ export default function Match3D({
             setError(
               "The 3D graphics context was lost. Restart the renderer or use the simple 2D mode.",
             );
-          });
+          }, settingsRef.current.graphics);
           if (stopped) {
             scene.dispose();
             return;
           }
           setReady(true);
+          scene.setGraphics(settingsRef.current.graphics);
+          sceneRef.current = scene;
           setError("");
         } catch {
           setError(
@@ -221,11 +298,12 @@ export default function Match3D({
               controls.sprint ||= pressed[5] || pressed[7];
               controls.shield ||= pressed[6];
               controls.skill ||= edge(11);
+              if (edge(9)) pause();
               lastPad = pressed;
             }
             accumulator += dt;
             let steps = 0;
-            while (accumulator >= 1 / 60 && steps < 6) {
+            while (runningRef.current && accumulator >= 1 / 60 && steps < 6) {
               current.current = stepFootball(current.current, controls, 1 / 60);
               accumulator -= 1 / 60;
               steps++;
@@ -283,7 +361,11 @@ export default function Match3D({
       stopped = true;
       cancelAnimationFrame(frame);
       scene?.dispose();
+      sceneRef.current = null;
     };
+    // The scene owns a long-lived RAF loop reading refs; restarting it on every
+    // HUD render would discard the renderer, input state and in-flight asset load.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attempt]);
   useEffect(() => {
     const blur = () =>
@@ -342,11 +424,13 @@ export default function Match3D({
       ref={container}
       className={styles.match}
       aria-label="3D football exhibition"
+      data-mode={training ? "training" : "exhibition"}
+      data-running={running}
     >
       <div className={styles.header}>
         <div>
-          <p className="eyebrow">RWOG FOOTBALL · 3D PROTOTYPE</p>
-          <h2>Step onto the pitch</h2>
+          <p className="eyebrow">RWG FOOTBALL <span className={styles.liveTag}>MATCHDAY</span></p>
+          <h2>{training ? "THE TRAINING GROUND" : "THIS IS YOUR GAME."}</h2>
           <p>
             {training
               ? "Finishing drill · One attacker and goalkeeper · Three active minutes"
@@ -359,7 +443,7 @@ export default function Match3D({
             if (
               current.current.elapsed === 0 ||
               window.confirm(
-                "Leave this exhibition? The score will not be saved.",
+                "Leave this exhibition? Your progress stays saved on this device when storage is available.",
               )
             ) {
               pause();
@@ -369,28 +453,6 @@ export default function Match3D({
         >
           Close 3D match
         </button>
-      </div>
-      <div className={styles.score}>
-        <span>
-          {home}
-          <small>GREEN · ATTACK RIGHT →</small>
-        </span>
-        <strong>
-          <span data-testid="3d-home-score">{snapshot.score[0]}</span> :{" "}
-          <span data-testid="3d-away-score">{snapshot.score[1]}</span>
-        </strong>
-        <span>
-          {away}
-          <small>CORAL · COMPUTER</small>
-        </span>
-        <b data-testid="3d-clock">
-          {minute}′ ·{" "}
-          {snapshot.phase === "fulltime"
-            ? "FULL TIME"
-            : running
-              ? snapshot.phase.toUpperCase()
-              : "PAUSED"}
-        </b>
       </div>
       <div className={styles.toolbar}>
         <button
@@ -415,11 +477,28 @@ export default function Match3D({
               const mode = e.target.value as CameraMode;
               cameraRef.current = mode;
               setCamera(mode);
+              changeSettings({...settingsRef.current, camera: mode});
             }}
           >
+            <option value="telecast">TV broadcast</option>
             <option value="follow">Follow the ball</option>
             <option value="close">Close to the action</option>
             <option value="broadcast">Whole pitch</option>
+          </select>
+        </label>
+        <label>
+          Graphics
+          <select aria-label="Graphics quality" value={settings.graphics}
+            onChange={e => changeSettings({...settingsRef.current, graphics: e.target.value as FootballSettings["graphics"]})}>
+            <option value="auto">Automatic</option><option value="performance">Performance</option>
+            <option value="balanced">Balanced</option><option value="high">High · shadows</option>
+          </select>
+        </label>
+        <label>
+          Opponent
+          <select aria-label="Opponent difficulty" value={settings.difficulty} disabled={running}
+            onChange={e => changeSettings({...settingsRef.current, difficulty: e.target.value as FootballSettings["difficulty"]})}>
+            <option value="casual">Casual</option><option value="club">Club</option><option value="elite">Elite</option>
           </select>
         </label>
         <button
@@ -471,6 +550,9 @@ export default function Match3D({
         data-charge={snapshot.charge.toFixed(2)}
         data-phase={snapshot.phase}
         data-shots={snapshot.shots[0]}
+        data-selected={snapshot.selected}
+        data-ball-owner={snapshot.ball.owner ?? "loose"}
+        data-away-passes={snapshot.passes?.[1] ?? 0}
         onKeyDown={(e) => {
           const key = e.key.toLowerCase();
           if (key === "escape") {
@@ -516,6 +598,13 @@ export default function Match3D({
         }}
       >
         <div ref={host} className={styles.scene} data-testid="3d-scene" />
+        <div className={styles.score} aria-label="Live match scoreboard">
+          <span title={home}>{home.slice(0, 3).toUpperCase()}</span>
+          <strong><span data-testid="3d-home-score">{snapshot.score[0]}</span><i>–</i><span data-testid="3d-away-score">{snapshot.score[1]}</span></strong>
+          <span title={away}>{away.slice(0, 3).toUpperCase()}</span>
+          <b data-testid="3d-clock">{minute}′ <small>{snapshot.phase === "fulltime" ? "FT" : running ? "LIVE" : "PAUSED"}</small></b>
+        </div>
+        <div className={styles.broadcastMark}>RWG <span>LIVE</span><small>{training ? "TRAINING" : "EXHIBITION"}</small></div>
         {ready && (
           <svg
             className={styles.minimap}
@@ -574,6 +663,7 @@ export default function Match3D({
           snapshot.phase === "goal" ||
           snapshot.phase === "kickoff") && (
           <div className={styles.overlay}>
+            {ready && !snapshot.elapsed && <p className={styles.versus}><span>{home}</span><b>V</b><span>{away}</span></p>}
             <strong>
               {!ready
                 ? error
@@ -587,7 +677,7 @@ export default function Match3D({
                       ? `${Math.ceil(snapshot.phaseTime)} · KICK OFF`
                       : snapshot.elapsed
                         ? "MATCH PAUSED"
-                        : "READY TO PLAY"}
+                        : "OWN THE PITCH"}
             </strong>
             <span>
               {snapshot.phase === "fulltime"
@@ -601,6 +691,22 @@ export default function Match3D({
                 {snapshot.elapsed ? "Continue play" : "Kick off"}
               </button>
             )}
+            {!running && ready && snapshot.elapsed === 0 && saved && saved.state.elapsed > 0 && (
+              <button className={styles.resumeSaved} onClick={() => {
+                current.current = saved.state;
+                current.current.charge = 0;
+                setSnapshot({...current.current});
+                setPauseReason("Saved match restored. Continue when you are ready.");
+              }}>Resume saved match · {Math.floor(saved.state.elapsed / FOOTBALL_DURATION * 90)}′</button>
+            )}
+            {ready && (!running || snapshot.phase === "fulltime") && snapshot.elapsed > 0 && (
+              <div className={styles.matchStats} aria-label="Exhibition statistics">
+                <p><b>{snapshot.shots[0]}</b><span>SHOTS</span><b>{snapshot.shots[1]}</b></p>
+                <p><b>{snapshot.passes?.[0] ?? 0}</b><span>PASSES</span><b>{snapshot.passes?.[1] ?? 0}</b></p>
+                <p><b>{snapshot.completedPasses?.[0] ?? 0}</b><span>COMPLETED</span><b>{snapshot.completedPasses?.[1] ?? 0}</b></p>
+              </div>
+            )}
+            {snapshot.phase === "fulltime" && <button className={styles.overlayButton} onClick={restart}>Play again</button>}
           </div>
         )}
         <div className={styles.playerHUD}>
@@ -616,9 +722,11 @@ export default function Match3D({
         </div>
       </div>
       <p role="status" className={styles.commentary}>
-        {snapshot.message}
+        <span className={styles.commentaryLabel}>TOUCHLINE</span> {snapshot.message}
       </p>
-      <div className={styles.controlGuide}>
+      {saveNotice && <p className={styles.saveNotice} role="status">{saveNotice}</p>}
+      <details className={styles.controlGuide}>
+        <summary>Controls & match guide</summary>
         <p>
           <b>Move</b> WASD / arrows · <b>Sprint</b> Shift · <b>Shield</b> F ·{" "}
           <b>Body feint</b> Q · <b>Switch</b> C
@@ -632,7 +740,7 @@ export default function Match3D({
           a challenge, and release a charged shot near the box. Yellow marks
           your controlled footballer. Keepers distribute automatically.
         </p>
-      </div>
+      </details>
       <div className={styles.touch} aria-label="3D touch controls">
         <div className={styles.stickGroup}>
           <button
@@ -749,12 +857,12 @@ export default function Match3D({
         </div>
       </div>
       <p className={styles.notes}>
+        <span className={styles.rotateHint}>Rotate your phone for a wider pitch. </span>
         {controller
           ? "Standard controller detected. Left stick: move · A/Cross: pass · B/Circle: hold/release shot · X/Square: tackle · Y/Triangle: through · LB/L1: switch · RB/R1: sprint · LT/L2: shield · right-stick click: skill."
           : "Optional standard-mapped gamepad support: connect a controller and press a button."}{" "}
-        Camera and graphics are experimental. This local exhibition uses your
-        XI’s names and ratings but does not write scores to the league. Three
-        active minutes, plus restarts. Match progress is discarded on reload.
+        Your saved XI · Three active minutes, plus restarts · Exhibition scores stay separate from the league.
+        {saveKey ? " Progress saves on this device; choose Resume saved match when returning." : " Match progress lasts while this view stays open."}
       </p>
       {snapshot.phase === "fulltime" && (
         <div className="success" role="alert">

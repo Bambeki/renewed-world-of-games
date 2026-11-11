@@ -3,6 +3,13 @@ import CampaignShell from "@/components/campaigns/campaign-shell";
 import styles from "@/components/campaigns/campaigns.module.css";
 const games = [
   {
+    title: "RWG Football",
+    kind: "11 v 11 · Matchday",
+    text: "Your club, on the pitch. Animated players, a TV broadcast camera, passing opponents and a match you can resume on this device.",
+    href: "/matches",
+    action: "Enter matchday",
+  },
+  {
     title: "Football laboratory",
     kind: "3D training · Signed-in club",
     text: "Master movement and foot touches against a goalkeeper. Clear start/resume controls and a focused training pitch.",

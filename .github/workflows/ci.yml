@@ -31,7 +31,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
       - run: npm ci
       - run: npm run db:generate
@@ -45,7 +45,7 @@ jobs:
       - name: Verify API and browser journeys on PostgreSQL
         env:
           CAMPAIGN_SCREENSHOTS: /tmp/rwog-campaign-screenshots
-          FOOTBALL3D_SCREENSHOTS: /tmp/rwog-campaign-screenshots
+          FOOTBALL_VISUAL_SCREENSHOTS: /tmp/rwog-campaign-screenshots
         run: |
           mkdir -p /tmp/rwog-campaign-screenshots
           npm run start -w backend > /tmp/rwog-api.log 2>&1 &
@@ -60,13 +60,49 @@ jobs:
           npm run test:arcade:browser
           npm run test:3d:browser
           npm run test:football-quality:browser
+          npm run test:football-production:browser
+          npm run test:football-visual:browser
           npm run test:campaigns:browser
+      - name: Build and smoke-test production containers
+        env:
+          RWG_DOMAIN: example.test
+          POSTGRES_PASSWORD: ci-compose-validation-only
+        run: |
+          docker compose -f docker/compose.production.yml config --quiet
+          docker build --target runtime --build-arg NEXT_PUBLIC_API_URL=/api/v1 -t rwg-ci-runtime .
+          docker build --target migrate --build-arg NEXT_PUBLIC_API_URL=/api/v1 -t rwg-ci-migrate .
+          docker run --rm --network host -e DATABASE_URL rwg-ci-migrate
+          trap 'docker logs rwg-ci-api 2>/dev/null || true; docker logs rwg-ci-web 2>/dev/null || true; docker rm -f rwg-ci-api rwg-ci-web 2>/dev/null || true' EXIT
+          docker run -d --network host --name rwg-ci-api -e DATABASE_URL -e JWT_SECRET -e JWT_ACCESS_EXPIRES_IN -e NODE_ENV=production -e PORT=4101 -e CORS_ORIGIN=https://example.test rwg-ci-runtime node backend/dist/main.js
+          docker run -d --network host --name rwg-ci-web -e INTERNAL_API_URL=http://127.0.0.1:4101/api/v1 rwg-ci-runtime node node_modules/next/dist/bin/next start frontend --port 4100 --hostname 127.0.0.1
+          node <<'JS'
+          const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+          (async () => {
+            for (let attempt = 0; attempt < 30; attempt++) {
+              try {
+                const api = await fetch('http://127.0.0.1:4101/api/v1/health');
+                const web = await fetch('http://127.0.0.1:4100/login');
+                const asset = await fetch('http://127.0.0.1:4100/assets/football/player.glb');
+                if ((await api.json()).status === 'ok' && web.ok && asset.ok && Buffer.from(await asset.arrayBuffer()).subarray(0, 4).toString() === 'glTF') {
+                  console.log('PASS production containers: non-root API connects to PostgreSQL; web serves login and bundled football asset.');
+                  return;
+                }
+              } catch {}
+              await pause(1000);
+            }
+            throw new Error('Production container health check failed');
+          })().catch(error => { console.error(error); process.exit(1); });
+          JS
+      - name: Runtime dependency audit
+        run: npm audit --omit=dev --json | tee /tmp/rwg-runtime-audit.json
       - name: Browser screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: release-browser-screenshots
-          path: /tmp/rwog-campaign-screenshots
+          path: |
+            /tmp/rwog-campaign-screenshots
+            /tmp/rwg-runtime-audit.json
           if-no-files-found: ignore
           retention-days: 14
       - name: Server logs on failure
