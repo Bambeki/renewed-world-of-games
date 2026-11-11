@@ -8,7 +8,7 @@ Implemented: an immersive match screen and original RWG broadcast graphics; four
 
 This is an exhibition mode. Client scores and device saves are never trusted as league results. All management changes continue to use the existing authenticated, revision-checked API.
 
-## Local observed checks
+## Observed checks
 
 Environment: Linux, Node 24.22.1, npm 11.9.0, Playwright 1.61.1, Chromium software rendering. A temporary PGlite wire server provided isolated test databases for browser journeys. Native PostgreSQL integration was also verified in GitHub Actions.
 
@@ -33,11 +33,11 @@ Environment: Linux, Node 24.22.1, npm 11.9.0, Playwright 1.61.1, Chromium softwa
 
 The new tests check CPU passing/blocked lanes, difficulty reaction windows, deterministic state continuation after a checkpoint, malformed payload rejection, settings recovery, production environment validation, configured JWT lifetime, bounded auth limits and compatibility with legacy bcrypt passwords. New registrations reject passwords above bcrypt's 72-byte limit; existing long passwords retain the old login behavior, with bounded request input.
 
-Local browser debugging exposed stale HUD writes rewinding the 2D clock; its simulation ref now remains authoritative. Test clocks are installed before match RAFs. Screenshot evidence now has a separate ordinary-real-time browser path. Chromium uses its normal process model: the serverless single-process graphics flags caused local screenshot/teardown stalls and are no longer injected. Assertions were retained, including animation, full time, graphics recovery and unchanged management data.
+Local browser debugging exposed stale HUD writes rewinding the 2D clock; its simulation ref now remains authoritative. Test clocks are installed before match RAFs. Screenshot evidence now has a separate ordinary-real-time browser path. Chromium uses its normal process model: the serverless single-process graphics flags caused local screenshot/teardown stalls and are no longer injected. Assertions were retained, including animation, full time, graphics recovery and unchanged management data. Functional software-rendering CI action waits are bounded at 60 seconds to accommodate shared-runner CPU delays; the separate real-time visual suite retains its ordinary interaction deadlines.
 
 ## CI and dependency evidence
 
-See the exact commit's run under [branch Actions](https://github.com/Bambeki/renewed-world-of-games/actions?query=branch%3Afeature%2Ffootball-browser-quality). CI includes native PostgreSQL 16 migrations and both integration tests, all browser suites, production container builds, migration-container execution, API/web/asset container health checks, and a fresh runtime dependency audit. The `release-browser-screenshots` artifact also retains the audit JSON.
+See the exact commit's run under [branch Actions](https://github.com/Bambeki/renewed-world-of-games/actions?query=branch%3Afeature%2Ffootball-browser-quality). CI includes native PostgreSQL 16 migrations and both integration tests, all browser suites, production container builds, migration-container execution, API/web/asset container health checks, an additional HTTPS browser journey through the production proxy, and a fresh runtime dependency audit. The `release-browser-screenshots` artifact also retains the audit JSON. The proxy journey uses the shipped Caddyfile with only CI upstream addresses substituted; localhost uses Caddy's local certificate authority. Its isolated browser accepts that local CA. Public-domain ACME issuance remains a deployment check on the selected host.
 
 The fresh lockfile selects Multer 2.5.0, PostCSS 8.5.32 and deepmerge-ts 8.0.2 through targeted transitive overrides. These replace the versions implicated in the previous runtime findings. Prisma generation, builds and tests were rerun after a clean install. The Prisma deepmerge override crosses a major library version, so its CLI/migration compatibility remains an explicit regression check.
 

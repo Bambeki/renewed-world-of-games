@@ -17,6 +17,8 @@ const { chromium, expect } = require("@playwright/test");
         viewport: { width: 1440, height: 1000 },
       }),
       errors = [];
+    // Shared CI uses software WebGL; retain action checks with a bounded CPU allowance.
+    if (process.env.CI) page.setDefaultTimeout(60000);
     page.on("pageerror", (e) => errors.push(e.message));
     page.on("console", (m) => {
       if (m.type() === "error" && /shader|THREE\.WebGL/.test(m.text()))

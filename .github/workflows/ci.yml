@@ -73,7 +73,7 @@ jobs:
           docker build --target runtime --build-arg NEXT_PUBLIC_API_URL=/api/v1 -t rwg-ci-runtime .
           docker build --target migrate --build-arg NEXT_PUBLIC_API_URL=/api/v1 -t rwg-ci-migrate .
           docker run --rm --network host -e DATABASE_URL rwg-ci-migrate
-          trap 'docker logs rwg-ci-api 2>/dev/null || true; docker logs rwg-ci-web 2>/dev/null || true; docker rm -f rwg-ci-api rwg-ci-web 2>/dev/null || true' EXIT
+          trap 'docker logs rwg-ci-api 2>/dev/null || true; docker logs rwg-ci-web 2>/dev/null || true; docker logs rwg-ci-proxy 2>/dev/null || true; docker rm -f rwg-ci-api rwg-ci-web rwg-ci-proxy 2>/dev/null || true' EXIT
           docker run -d --network host --name rwg-ci-api -e DATABASE_URL -e JWT_SECRET -e JWT_ACCESS_EXPIRES_IN -e NODE_ENV=production -e PORT=4101 -e CORS_ORIGIN=https://example.test rwg-ci-runtime node backend/dist/main.js
           docker run -d --network host --name rwg-ci-web -e INTERNAL_API_URL=http://127.0.0.1:4101/api/v1 rwg-ci-runtime node node_modules/next/dist/bin/next start frontend --port 4100 --hostname 127.0.0.1
           node <<'JS'
@@ -94,6 +94,15 @@ jobs:
             throw new Error('Production container health check failed');
           })().catch(error => { console.error(error); process.exit(1); });
           JS
+          # Use the shipped proxy config with host-network upstream addresses.
+          # Localhost gets Caddy's isolated local CA; public ACME needs the deployment domain.
+          sed -e 's/api:4001/127.0.0.1:4101/' -e 's/web:4000/127.0.0.1:4100/' docker/Caddyfile > /tmp/rwg-ci-Caddyfile
+          docker run -d --network host --name rwg-ci-proxy -e RWG_DOMAIN=localhost:4443 -v /tmp/rwg-ci-Caddyfile:/etc/caddy/Caddyfile:ro caddy:2-alpine
+          for attempt in $(seq 1 30); do
+            if curl --insecure --fail --silent https://localhost:4443/api/v1/health; then break; fi
+            sleep 1
+          done
+          CONTAINER_WEB_URL=https://localhost:4443 node tests/production-container-browser.cjs
       - name: Runtime dependency audit
         if: ${{ !cancelled() }}
         run: npm audit --omit=dev --json | tee /tmp/rwg-runtime-audit.json

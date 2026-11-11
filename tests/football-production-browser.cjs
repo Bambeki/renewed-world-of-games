@@ -3,6 +3,7 @@ const {chromium,expect}=require('@playwright/test');
  const browser=await chromium.launch({headless:true,args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'],...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{})});
  try{
   const page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[],writes=[];
+  if(process.env.CI)page.setDefaultTimeout(60000);
   page.on('pageerror',e=>errors.push(e.message));page.on('response',r=>{if(r.status()>=500)errors.push(r.status()+' '+r.url())});page.on('request',r=>{if(r.url().includes('/api/v1/game')&&r.method()!=='GET')writes.push(r.url())});
   const base=process.env.WEB_URL||'http://localhost:4000',key='matchday'+Date.now();
   await page.goto(base+'/register');await page.getByLabel('Email',{exact:true}).fill(key+'@example.com');await page.getByLabel('Username',{exact:true}).fill(key);await page.getByLabel('Password',{exact:true}).fill('MatchdayBuild!2026');await page.getByRole('button',{name:'Register',exact:true}).click();await expect(page).toHaveURL(/dashboard/);

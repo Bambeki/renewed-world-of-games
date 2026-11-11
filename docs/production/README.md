@@ -41,7 +41,7 @@ These create isolated test accounts; do not run them against a customer database
 
 ## Staging package
 
-`Dockerfile` separates the build/migration target from a non-root runtime. The runtime installs production dependencies; the migration service retains the Prisma CLI. `docker/compose.production.yml` provides PostgreSQL, one-shot migrations, API, web and a Caddy TLS proxy. Database/API ports are private to the compose network. Only the proxy exposes ports.
+`Dockerfile` separates the build/migration target from a non-root runtime. The runtime installs production dependencies; the migration service retains the Prisma CLI. `docker/compose.production.yml` provides PostgreSQL, one-shot migrations, API, web and a Caddy TLS proxy. CI also runs registration, login, club/match loading and asset requests through HTTPS and the production image, using Caddy's local CA for its disposable localhost endpoint. Database/API ports are private to the compose network. Only the proxy exposes ports.
 
 1. Put the DNS name on a prepared staging host. Obtain a host, a domain, backups and monitoring under the project owner's account.
 2. Copy `docker/production.env.example` to an untracked file on that host and generate two distinct secrets. Use hexadecimal for the database password so its URL encoding is unambiguous. Do not use example values.
