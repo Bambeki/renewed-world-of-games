@@ -22,7 +22,7 @@ Environment: Linux, Node 24.22.1, npm 11.9.0, Playwright 1.61.1, Chromium softwa
 | Existing 3D browser regression | Pass: movement/sprint/charged shot, action buttons, synthetic gamepad, pause/restart, cameras, widths, hidden-tab pause, graphics-context retry, training, close and unchanged league/budget |
 | Skinned-football quality suite | Pass: bundled GLB, real bone-pose changes, diagonal analogue stick, minimap, paused skeleton, widths, asset failure/retry and training shot |
 | Matchday browser suite | Pass: TV camera, graphics controls, difficulty, movement, device save/reload/resume, settings persistence, invalid save handling and responsive layouts |
-| Real-time visual suite | Pass: ordinary RAF kickoff and keyboard movement, actual bone animation, frozen pause, all four cameras, desktop/tablet/phone portrait/landscape screenshots and close |
+| Real-time visual suite | Pass: ordinary RAF kickoff and keyboard movement, actual bone animation, frozen pause, all four cameras, desktop/tablet/phone portrait/landscape screenshots, live landscape pointer movement and close |
 | Manager browser journey | Pass: account, login, squad/details, lineup save/reload, fixtures/report, standings, buy/sell, club edit, logout; 8 routes × 3 widths |
 | Ludo browser | Pass |
 | 2D football browser | Pass including full time, pause/restart and unchanged league |

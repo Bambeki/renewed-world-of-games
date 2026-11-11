@@ -31,7 +31,15 @@ async function capture(element,path){
    expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),'overflow '+width+'x'+height).toBe(false);
    if(out)await capture(region,out+'/matchday-'+width+'x'+height+'.png');
   }
+  // Verify the actual landscape control layer during play, after the paused views.
+  await region.getByRole('button',{name:'Continue play',exact:true}).click();
+  const stick=region.getByRole('button',{name:'360 degree movement stick',exact:true});
+  await expect(stick).toBeVisible();const box=await stick.boundingBox(),beforeTouch=Number(await controls.getAttribute('data-controlled-x'));
+  await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();await page.mouse.move(box.x+box.width*.82,box.y+box.height*.7);
+  await expect.poll(async()=>Number(await controls.getAttribute('data-controlled-x')),{timeout:10000}).toBeGreaterThan(beforeTouch+.15);
+  await page.mouse.up();if(out)await capture(region,out+'/matchday-landscape-playing.png');
+  await region.getByRole('button',{name:'Pause 3D match',exact:true}).click();
   page.once('dialog',d=>d.accept());await region.getByRole('button',{name:'Close 3D match',exact:true}).click();await expect(region).toHaveCount(0);expect(errors).toEqual([]);
-  console.log('PASS real-time football: ordinary RAF kickoff, keyboard movement and bone animation, frozen pause, four cameras, desktop/tablet/phone portrait/landscape, screenshots and close; no page/5xx errors.');
+  console.log('PASS real-time football: ordinary RAF kickoff, keyboard movement and bone animation, frozen pause, four cameras, desktop/tablet/phone portrait/landscape, live landscape pointer movement, screenshots and close; no page/5xx errors.');
  }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exit(1)});

@@ -162,13 +162,13 @@ export default function Match3D({
     clear();
     runningRef.current = true;
     setRunning(true);
-    viewport.current?.focus();
+    viewport.current?.focus({ preventScroll: true });
   }
   function action(
     key: "pass" | "through" | "lob" | "tackle" | "skill" | "switch",
   ) {
     input.current[key] = true;
-    viewport.current?.focus();
+    viewport.current?.focus({ preventScroll: true });
   }
   function restart() {
     if (
@@ -590,7 +590,7 @@ export default function Match3D({
         }}
         onPointerDown={(event) => {
           if ((event.target as HTMLElement).tagName === "CANVAS")
-            viewport.current?.focus();
+            viewport.current?.focus({ preventScroll: true });
         }}
         onBlur={() => {
           keys.current.clear();
