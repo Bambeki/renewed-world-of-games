@@ -214,7 +214,9 @@ const { chromium, expect } = require("@playwright/test");
       .getByRole("button", { name: "Close 3D match", exact: true })
       .click();
     await expect(match).toHaveCount(0);
-    await page.goto(base + "/training");
+    // Navigation must not inherit the paused simulation test clock.
+    await page.clock.resume();
+    await page.goto(base + "/training", { timeout: 60000 });
     await page.clock.runFor(200);
     await page
       .getByRole("button", { name: "Play 3D match", exact: true })

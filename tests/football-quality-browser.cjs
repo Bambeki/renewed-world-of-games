@@ -116,7 +116,9 @@ const { chromium, expect } = require("@playwright/test");
     await region
       .getByRole("button", { name: "Close 3D match", exact: true })
       .click();
-    await page.goto(base + "/training");
+    // Navigation must not inherit the paused simulation test clock.
+    await page.clock.resume();
+    await page.goto(base + "/training", { timeout: 60000 });
     await page.route("**/assets/football/player.glb", (route) => route.abort());
     await page
       .getByRole("button", { name: "Play 3D match", exact: true })

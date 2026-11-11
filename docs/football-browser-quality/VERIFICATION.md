@@ -19,6 +19,8 @@ Environment: Linux, Node 24.22.1, npm 11.9.0, Playwright 1.61.1, Chromium softwa
 | Shared, backend and frontend production builds | Pass; 18 Next.js routes |
 | Unit/engine tests | 61 passed: 17 backend/shared, 44 frontend |
 | Native PostgreSQL 16 integration | Both integration scenarios and migrations passed in GitHub Actions |
+| Production containers | Both images built; migration target ran; non-root API/PostgreSQL health and web/login/bundled-GLB smoke checks passed in CI |
+| Runtime dependency audit | Fresh CI audit reported zero runtime vulnerabilities for the checked-in lockfile |
 | Existing 3D browser regression | Pass: movement/sprint/charged shot, action buttons, synthetic gamepad, pause/restart, cameras, widths, hidden-tab pause, graphics-context retry, training, close and unchanged league/budget |
 | Skinned-football quality suite | Pass: bundled GLB, real bone-pose changes, diagonal analogue stick, minimap, paused skeleton, widths, asset failure/retry and training shot |
 | Matchday browser suite | Pass: TV camera, graphics controls, difficulty, movement, device save/reload/resume, settings persistence, invalid save handling and responsive layouts |
@@ -39,7 +41,7 @@ See the exact commit's run under [branch Actions](https://github.com/Bambeki/ren
 
 The fresh lockfile selects Multer 2.5.0, PostCSS 8.5.32 and deepmerge-ts 8.0.2 through targeted transitive overrides. These replace the versions implicated in the previous runtime findings. Prisma generation, builds and tests were rerun after a clean install. The Prisma deepmerge override crosses a major library version, so its CLI/migration compatibility remains an explicit regression check.
 
-The local registry rejected a fresh audit request with HTTP 403. This document does not claim a clean audit from that denied request. The CI audit output is authoritative for the exact new lockfile. PGlite's wire adapter could not complete the second concurrent-client integration scenario locally; both scenarios passed on native PostgreSQL 16 in CI. No game/business logic was weakened to accommodate the adapter.
+The local registry rejected a fresh audit request with HTTP 403; the independent CI audit succeeded with zero runtime findings for this lockfile. The full development install still reported 11 advisories (2 low, 9 moderate) outside the production audit scope. Re-scan on dependency changes. PGlite's wire adapter could not complete the second concurrent-client integration scenario locally; both scenarios passed on native PostgreSQL 16 in CI. No game/business logic was weakened to accommodate the adapter.
 
 ## Visual and operational limits
 
