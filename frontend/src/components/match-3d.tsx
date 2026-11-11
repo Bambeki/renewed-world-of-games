@@ -45,12 +45,35 @@ export default function Match3D({
   const cameraRef = useRef<CameraMode>("follow");
   const [camera, setCamera] = useState<CameraMode>("follow");
   const [controller, setController] = useState(false);
+  const [stick, setStick] = useState({ x: 0, z: 0 });
+  const stickPointer = useRef<number | null>(null);
   const audio = useRef<AudioContext | null>(null);
   const [sound, setSound] = useState(false);
   function clear() {
     keys.current.clear();
     input.current = neutralInput();
     current.current.charge = 0;
+    stickPointer.current = null;
+    setStick({ x: 0, z: 0 });
+  }
+  function moveStick(event: React.PointerEvent<HTMLButtonElement>) {
+    const box = event.currentTarget.getBoundingClientRect();
+    let x = (event.clientX - box.x - box.width / 2) / (box.width * 0.36);
+    let z = (event.clientY - box.y - box.height / 2) / (box.height * 0.36);
+    const magnitude = Math.hypot(x, z);
+    if (magnitude > 1) {
+      x /= magnitude;
+      z /= magnitude;
+    }
+    input.current.x = Math.abs(x) < 0.06 ? 0 : x;
+    input.current.z = Math.abs(z) < 0.06 ? 0 : z;
+    setStick({ x, z });
+  }
+  function releaseStick() {
+    stickPointer.current = null;
+    input.current.x = 0;
+    input.current.z = 0;
+    setStick({ x: 0, z: 0 });
   }
   function pause(reason = "Paused by you. Resume when you are ready.") {
     setPauseReason(reason);
@@ -122,8 +145,8 @@ export default function Match3D({
   useEffect(() => {
     let stopped = false,
       frame = 0;
-    let scene: ReturnType<
-      typeof import("@/lib/football-scene").createFootballScene
+    let scene: Awaited<
+      ReturnType<typeof import("@/lib/football-scene").createFootballScene>
     > | null = null;
     let previous = 0,
       accumulator = 0,
@@ -132,10 +155,10 @@ export default function Match3D({
     let lastPad: boolean[] = [];
     setReady(false);
     import("@/lib/football-scene")
-      .then(({ createFootballScene }) => {
+      .then(async ({ createFootballScene }) => {
         if (stopped || !host.current) return;
         try {
-          scene = createFootballScene(host.current, () => {
+          scene = await createFootballScene(host.current, () => {
             runningRef.current = false;
             setRunning(false);
             setReady(false);
@@ -143,11 +166,15 @@ export default function Match3D({
               "The 3D graphics context was lost. Restart the renderer or use the simple 2D mode.",
             );
           });
+          if (stopped) {
+            scene.dispose();
+            return;
+          }
           setReady(true);
           setError("");
         } catch {
           setError(
-            "3D graphics could not start. Enable WebGL / hardware acceleration in your browser, or close this view and use simple 2D mode.",
+            "The player assets or 3D graphics could not load. Check your connection and WebGL support, then retry.",
           );
           return;
         }
@@ -232,7 +259,12 @@ export default function Match3D({
             )
               beep(current.current.phase === "goal");
           }
-          scene.render(current.current, cameraRef.current, dt);
+          scene.render(
+            current.current,
+            cameraRef.current,
+            dt,
+            runningRef.current,
+          );
           if (now - lastHUD > 100) {
             setSnapshot({ ...current.current });
             lastHUD = now;
@@ -484,6 +516,59 @@ export default function Match3D({
         }}
       >
         <div ref={host} className={styles.scene} data-testid="3d-scene" />
+        {ready && (
+          <svg
+            className={styles.minimap}
+            viewBox="0 0 110 72"
+            role="img"
+            aria-label="Live tactical minimap"
+          >
+            <rect
+              x="1"
+              y="1"
+              width="108"
+              height="70"
+              rx="3"
+              fill="#0b2929dc"
+              stroke="#d3eee6"
+              strokeWidth="0.5"
+            />
+            <path
+              d="M55 1V71 M1 24H16V48H1 M109 24H94V48H109"
+              fill="none"
+              stroke="#b7d0c3"
+              strokeWidth="0.4"
+            />
+            <circle
+              cx="55"
+              cy="36"
+              r="9"
+              fill="none"
+              stroke="#b7d0c3"
+              strokeWidth="0.4"
+            />
+            {snapshot.players.map(
+              (player, i) =>
+                !player.inactive && (
+                  <circle
+                    key={i}
+                    cx={player.x + 55}
+                    cy={player.z + 36}
+                    r={i === snapshot.selected ? 2 : 1.4}
+                    fill={player.team === 0 ? "#6ae6b9" : "#f1776a"}
+                    stroke={i === snapshot.selected ? "#ffe689" : "none"}
+                    strokeWidth="0.8"
+                  />
+                ),
+            )}
+            <circle
+              cx={snapshot.ball.x + 55}
+              cy={snapshot.ball.z + 36}
+              r="1.1"
+              fill="white"
+            />
+          </svg>
+        )}
         {(!running ||
           !ready ||
           snapshot.phase === "goal" ||
@@ -549,6 +634,32 @@ export default function Match3D({
         </p>
       </div>
       <div className={styles.touch} aria-label="3D touch controls">
+        <div className={styles.stickGroup}>
+          <button
+            className={styles.stick}
+            aria-label="360 degree movement stick"
+            disabled={!running}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              stickPointer.current = e.pointerId;
+              e.currentTarget.setPointerCapture(e.pointerId);
+              moveStick(e);
+            }}
+            onPointerMove={(e) => {
+              if (stickPointer.current === e.pointerId) moveStick(e);
+            }}
+            onPointerUp={releaseStick}
+            onPointerCancel={releaseStick}
+            onLostPointerCapture={releaseStick}
+          >
+            <span
+              style={{
+                transform: `translate(${stick.x * 36}px, ${stick.z * 36}px)`,
+              }}
+            />
+          </button>
+          <small>Drag in any direction</small>
+        </div>
         <div className={styles.dpad}>
           {[
             { name: "Run up", x: 0, z: -1, label: "↑" },

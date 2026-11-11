@@ -4,6 +4,8 @@ A collection of browser games built with Next.js, React, TypeScript and a NestJS
 
 This branch is a **playtest release candidate**, not a production or console-quality release. It preserves the football manager and Ludo, adds a focused 3D football drill, and introduces two original single-player campaigns.
 
+The football-focused revision adds skinned humanoids, blended locomotion, closer cameras, a minimap and analogue input. See [the browser football revision](docs/football-browser-quality/README.md) for actual scope and verification.
+
 ## Playable collection
 
 Open **All games** at `/games`.
@@ -25,7 +27,7 @@ Use Node 20+ and npm 10+, with Docker Desktop running. From an existing checkout
 
 ```bash
 git fetch origin
-git switch feature/release-candidate
+git switch feature/football-browser-quality
 npm ci
 ```
 
@@ -83,6 +85,7 @@ npm run test:browser
 npm run test:ludo:browser
 npm run test:arcade:browser
 npm run test:3d:browser
+npm run test:football-quality:browser
 npm run test:campaigns:browser
 ```
 

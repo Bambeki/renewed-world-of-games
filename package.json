@@ -28,7 +28,8 @@
     "test:ludo:browser": "node tests/ludo-browser.cjs",
     "test:arcade:browser": "node tests/arcade-browser.cjs",
     "test:3d:browser": "node tests/football-3d-browser.cjs",
-    "test:campaigns:browser": "node tests/campaigns-browser.cjs"
+    "test:campaigns:browser": "node tests/campaigns-browser.cjs",
+    "test:football-quality:browser": "node tests/football-quality-browser.cjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",

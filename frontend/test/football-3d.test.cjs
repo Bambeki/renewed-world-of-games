@@ -94,7 +94,7 @@ test("standing tackle, shielding and body feint provide different possession out
     return s;
   };
   assert.equal(step(setup(), { shield: true }).ball.owner, 9);
-  assert.notEqual(step(setup()).ball.owner, 9);
+  assert.notEqual(step(setup(), {}, 18).ball.owner, 9);
   const feint = step(setup(), { skill: true });
   assert.equal(feint.ball.owner, 9);
   assert.ok(feint.players[9].stamina < 100);
@@ -262,5 +262,74 @@ test("training mode has one attacker and one keeper, and passing cannot target h
   for (let i = 0; i < 180; i++) s = stepFootball(s, neutralInput(), 1 / 60);
   assert.ok(
     s.players.filter((p) => p.inactive).every((p) => p.vx === 0 && p.vz === 0),
+  );
+});
+
+test("a pass hands control to an available receiver before the ball arrives", () => {
+  const s = play();
+  const n = step(s, { pass: true });
+  assert.notEqual(n.selected, s.selected);
+  assert.equal(n.players[n.selected].team, 0);
+  assert.equal(n.players[n.selected].keeper, false);
+  assert.equal(n.ball.owner, null);
+  assert.match(n.message, new RegExp(n.players[n.selected].name));
+});
+test("body feints travel smoothly through time without teleporting", () => {
+  const s = play();
+  const n = step(s, { skill: true });
+  assert.ok(
+    Math.hypot(
+      n.players[9].x - s.players[9].x,
+      n.players[9].z - s.players[9].z,
+    ) < 0.1,
+  );
+  const after = step(n, {}, 20);
+  assert.ok(
+    Math.hypot(
+      after.players[9].x - n.players[9].x,
+      after.players[9].z - n.players[9].z,
+    ) > 0.15,
+  );
+});
+test("a keeper holds a caught ball above the ground before distributing", () => {
+  const s = play();
+  s.ball.owner = 11;
+  s.ball.x = 48;
+  s.ball.z = 0;
+  const n = step(s, {}, 10);
+  assert.equal(n.ball.owner, 11);
+  assert.ok(n.ball.y >= 1);
+  assert.ok(
+    Math.hypot(n.ball.x - n.players[11].x, n.ball.z - n.players[11].z) < 0.6,
+  );
+});
+
+test("computer challenges give the carrier time to react, and shielding cancels the challenge", () => {
+  const s = play();
+  s.ball.cooldown = 0;
+  s.players[9].x = 0;
+  s.players[9].z = 0;
+  s.ball.x = 0;
+  s.ball.z = 0;
+  s.players[20].x = 1;
+  s.players[20].z = 0;
+  const first = step(s);
+  assert.equal(
+    first.ball.owner,
+    9,
+    "proximity alone cannot steal the ball in one frame",
+  );
+  assert.ok(first.players[20].pressure > 0);
+  const shielded = step(first, { shield: true }, 30);
+  assert.equal(shielded.ball.owner, 9);
+  assert.equal(shielded.players[20].pressure, 0);
+});
+
+test("a kick faces its actual launch direction", () => {
+  const s = play();
+  s.players[9].facing = 0;
+  const n = step(s, { shoot: true });
+  assert.ok(
+    Math.abs(n.players[9].facing - Math.atan2(n.ball.vx, n.ball.vz)) < 0.001,
   );
 });

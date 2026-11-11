@@ -1,0 +1,15 @@
+{
+  "asset": "player.glb",
+  "sha256": "ca8af61fafa97f283064f850893618635361b2ea913181681a52230ba9d8c223",
+  "bytes": 979960,
+  "creator": "Quaternius",
+  "license": "CC0 1.0 Universal",
+  "base_source": "https://quaternius.com/packs/universalbasecharacters.html",
+  "base_redistribution": "https://github.com/programasweights/avatar/blob/main/public/assets/character.glb",
+  "base_input_sha256": "d6f3b64cab629f6ddca9ba063811aeffd3663a8a4e49ade47cd9505dc2bbd70f",
+  "animation_source": "https://quaternius.com/packs/universalanimationlibrary.html",
+  "animation_archive_sha256": "cc73fc4e495b82958207316596317a3f40b9fa38065bde1027937452da537724",
+  "animation_input": "Unreal-Godot/UAL1_Standard.glb",
+  "animation_input_sha256": "69591853d817488edaa8fd9bf8fc1d821eaeaf789f8627b3cd23b41c4ed67997",
+  "processing": "Four locomotion clips sampled at 30Hz and retargeted to base rest pose; original mesh and bone lengths preserved; no external texture dependencies."
+}

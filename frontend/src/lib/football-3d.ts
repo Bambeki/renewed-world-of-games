@@ -3,6 +3,9 @@ export type Athlete = {
   inactive?: boolean;
   gait?: number;
   touchClock?: number;
+  receiving?: number;
+  pressure?: number;
+  shielding?: boolean;
   x: number;
   z: number;
   vx: number;
@@ -233,6 +236,7 @@ function kick(
   const p = s.players[index],
     b = s.ball;
   const d = Math.hypot(tx - p.x, tz - p.z) || 1;
+  p.facing = Math.atan2(tx - p.x, tz - p.z);
   b.x = p.x + ((tx - p.x) / d) * 0.95;
   b.z = p.z + ((tz - p.z) / d) * 0.95;
   b.y = 0.3;
@@ -267,6 +271,8 @@ export function stepFootball(
     p.kick = Math.max(0, p.kick - dt);
     p.tackle = Math.max(0, p.tackle - dt);
     p.skill = Math.max(0, p.skill - dt);
+    p.receiving = Math.max(0, (p.receiving ?? 0) - dt);
+    p.shielding = false;
   });
   if (s.phase !== "playing") {
     s.phaseTime -= dt;
@@ -295,6 +301,7 @@ export function stepFootball(
   // A goalkeeper always remains autonomous; switching never traps the user in goal.
   if (s.players[s.selected].keeper) s.selected = nearest(s, 0);
   const controlled = s.players[s.selected];
+  controlled.shielding = input.shield && b.owner === s.selected;
   const magnitude = Math.hypot(input.x, input.z);
   const sprint = input.sprint && controlled.stamina > 5 && !input.shield;
   controlled.stamina = limit(
@@ -320,18 +327,23 @@ export function stepFootball(
   ) {
     controlled.skill = 0.75;
     controlled.stamina -= 12;
+    b.cooldown = 0.5;
+    announce(s, "A quick body feint — push into the space.");
+  }
+  // Move through the feint over time, rather than teleporting sideways.
+  if (controlled.skill > 0) {
+    const sideStep =
+      Math.sin((1 - controlled.skill / 0.75) * Math.PI) * 2.8 * dt;
     controlled.x = limit(
-      controlled.x + Math.cos(controlled.facing) * 1.7,
+      controlled.x + Math.cos(controlled.facing) * sideStep,
       -51,
       51,
     );
     controlled.z = limit(
-      controlled.z - Math.sin(controlled.facing) * 1.7,
+      controlled.z - Math.sin(controlled.facing) * sideStep,
       -33,
       33,
     );
-    b.cooldown = 0.5;
-    announce(s, "A quick body feint — push into the space.");
   }
   const pressing = [nearest(s, 0), nearest(s, 1)];
   for (let i = 0; i < s.players.length; i++) {
@@ -465,6 +477,7 @@ export function stepFootball(
             input.through ? 23 : 18,
             input.lob ? 7.2 : 0.6,
           );
+          s.selected = target.i;
           s.charge = 0;
           announce(
             s,
@@ -489,14 +502,18 @@ export function stepFootball(
       b.cooldown === 0 &&
       !(human && (input.shield || owner.skill > 0))
     ) {
-      const challenger = s.players.findIndex(
-        (p) =>
+      let challenger = -1;
+      s.players.forEach((p, i) => {
+        const close =
           !p.inactive &&
           p.team !== owner.team &&
           !p.keeper &&
+          i !== s.selected &&
           dist(p, owner) < 1.15 &&
-          p.tackle === 0,
-      );
+          p.tackle === 0;
+        p.pressure = close ? (p.pressure ?? 0) + dt : 0;
+        if (p.pressure >= 0.22 && challenger === -1) challenger = i;
+      });
       if (challenger !== -1) {
         s.players[challenger].tackle = 1.3;
         b.owner = challenger;
@@ -506,49 +523,61 @@ export function stepFootball(
         if (b.lastTouch === 0) s.selected = challenger;
         announce(s, "A challenge wins the ball.");
       }
-    }
+    } else
+      s.players.forEach((p) => {
+        p.pressure = 0;
+      });
     if (b.owner !== null) {
       const carrier = s.players[b.owner];
-      const moving = Math.hypot(carrier.vx, carrier.vz);
-      // Touches impart velocity; the ball rolls independently between contacts.
-      // Sprinting pushes it farther ahead and exposes it during sharp turns.
-      const close = b.owner === s.selected && input.shield;
-      const reach = moving > 6 ? 1.65 : close ? 0.48 : 0.85;
-      carrier.touchClock = Math.max(0, (carrier.touchClock ?? 0) - dt);
-      if (
-        Math.abs(b.x) <= 52.5 &&
-        Math.abs(b.z) <= 34 &&
-        (carrier.touchClock === 0 || (moving < 0.3 && dist(carrier, b) > 0.8))
-      ) {
-        const side = Math.sin(carrier.gait ?? 0) > 0 ? 0.15 : -0.15;
-        const tx =
-          carrier.x +
-          Math.sin(carrier.facing) * reach +
-          Math.cos(carrier.facing) * side;
-        const tz =
-          carrier.z +
-          Math.cos(carrier.facing) * reach -
-          Math.sin(carrier.facing) * side;
-        b.vx = carrier.vx + (tx - b.x) * (close ? 10 : 7);
-        b.vz = carrier.vz + (tz - b.z) * (close ? 10 : 7);
-        carrier.touchClock = close ? 0.13 : moving > 6 ? 0.32 : 0.22;
-      }
-      b.x += b.vx * dt;
-      b.z += b.vz * dt;
-      const drag = Math.exp(-(moving < 0.3 ? 10 : 1.8) * dt);
-      b.vx *= drag;
-      b.vz *= drag;
-      b.y = 0.22;
-      b.vy = 0;
-      if (!carrier.keeper && dist(carrier, b) > (moving > 6 ? 3.8 : 3)) {
-        b.owner = null;
-        b.releasedBy = undefined;
-        b.cooldown = 0.08;
-        s.charge = 0;
-        announce(
-          s,
-          "Heavy touch — chase the loose ball or switch to a teammate.",
-        );
+      if (carrier.keeper) {
+        b.x = carrier.x + (carrier.team === 0 ? 0.45 : -0.45);
+        b.z = carrier.z;
+        b.y = 1.05;
+        b.vx = 0;
+        b.vz = 0;
+        b.vy = 0;
+      } else {
+        const moving = Math.hypot(carrier.vx, carrier.vz);
+        // Touches impart velocity; the ball rolls independently between contacts.
+        // Sprinting pushes it farther ahead and exposes it during sharp turns.
+        const close = b.owner === s.selected && input.shield;
+        const reach = moving > 6 ? 1.65 : close ? 0.48 : 0.85;
+        carrier.touchClock = Math.max(0, (carrier.touchClock ?? 0) - dt);
+        if (
+          Math.abs(b.x) <= 52.5 &&
+          Math.abs(b.z) <= 34 &&
+          (carrier.touchClock === 0 || (moving < 0.3 && dist(carrier, b) > 0.8))
+        ) {
+          const side = Math.sin(carrier.gait ?? 0) > 0 ? 0.15 : -0.15;
+          const tx =
+            carrier.x +
+            Math.sin(carrier.facing) * reach +
+            Math.cos(carrier.facing) * side;
+          const tz =
+            carrier.z +
+            Math.cos(carrier.facing) * reach -
+            Math.sin(carrier.facing) * side;
+          b.vx = carrier.vx + (tx - b.x) * (close ? 10 : 7);
+          b.vz = carrier.vz + (tz - b.z) * (close ? 10 : 7);
+          carrier.touchClock = close ? 0.13 : moving > 6 ? 0.32 : 0.22;
+        }
+        b.x += b.vx * dt;
+        b.z += b.vz * dt;
+        const drag = Math.exp(-(moving < 0.3 ? 10 : 1.8) * dt);
+        b.vx *= drag;
+        b.vz *= drag;
+        b.y = 0.22;
+        b.vy = 0;
+        if (!carrier.keeper && dist(carrier, b) > (moving > 6 ? 3.8 : 3)) {
+          b.owner = null;
+          b.releasedBy = undefined;
+          b.cooldown = 0.08;
+          s.charge = 0;
+          announce(
+            s,
+            "Heavy touch — chase the loose ball or switch to a teammate.",
+          );
+        }
       }
       s.possession[carrier.team] += dt;
     }
@@ -593,6 +622,7 @@ export function stepFootball(
       if (catcher !== -1) {
         b.owner = catcher;
         s.players[catcher].touchClock = 0;
+        s.players[catcher].receiving = 0.3;
         b.cooldown = 0.55;
         b.lastTouch = s.players[catcher].team;
         s.keeperHold = 0;

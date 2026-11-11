@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, develop, feature/investor-demo-mvp, feature/ludo-local, feature/football-3d, feature/release-candidate]
+    branches: [main, develop, feature/investor-demo-mvp, feature/ludo-local, feature/football-3d, feature/release-candidate, feature/football-browser-quality]
   pull_request:
-    branches: [main, develop, feature/investor-demo-mvp, feature/ludo-local, feature/football-3d]
+    branches: [main, develop, feature/investor-demo-mvp, feature/ludo-local, feature/football-3d, feature/release-candidate]
 
 jobs:
   check:
@@ -59,6 +59,7 @@ jobs:
           npm run test:ludo:browser
           npm run test:arcade:browser
           npm run test:3d:browser
+          npm run test:football-quality:browser
           npm run test:campaigns:browser
       - name: Browser screenshots
         if: always()

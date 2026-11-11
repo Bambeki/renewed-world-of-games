@@ -1,10 +1,15 @@
 import * as THREE from "three";
 import { FootballState } from "./football-3d";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { createFootballActor } from "./football-actor";
 export type CameraMode = "follow" | "broadcast" | "close";
-export function createFootballScene(
+export async function createFootballScene(
   host: HTMLDivElement,
   onContextLost: () => void,
 ) {
+  const template = await new GLTFLoader().loadAsync(
+    "/assets/football/player.glb",
+  );
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
     alpha: false,
@@ -62,6 +67,26 @@ export function createFootballScene(
     dark = mat("#152839"),
     concrete = mat("#65777f"),
     yellow = mat("#f9d96b");
+  // A small repeated texture gives the turf surface detail without external downloads.
+  const turfCanvas = document.createElement("canvas");
+  turfCanvas.width = turfCanvas.height = 256;
+  const turfContext = turfCanvas.getContext("2d");
+  if (turfContext) {
+    const pixels = turfContext.createImageData(256, 256);
+    let seed = 9371;
+    for (let i = 0; i < pixels.data.length; i += 4) {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      const value = 180 + (seed % 76);
+      pixels.data.set([value, value, value, 255], i);
+    }
+    turfContext.putImageData(pixels, 0, 0);
+  }
+  const turf = new THREE.CanvasTexture(turfCanvas);
+  turf.wrapS = turf.wrapT = THREE.RepeatWrapping;
+  turf.repeat.set(14, 9);
+  turf.colorSpace = THREE.SRGBColorSpace;
+  turf.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+  ground.map = turf;
   const boxGeo = new THREE.BoxGeometry(1, 1, 1);
   function box(
     parent: THREE.Object3D,
@@ -86,10 +111,9 @@ export function createFootballScene(
   floor.receiveShadow = true;
   scene.add(floor);
   for (let i = 0; i < 14; i++) {
-    const strip = new THREE.Mesh(
-      new THREE.PlaneGeometry(7.5, 68),
-      mat(i % 2 ? "#32904b" : "#2a8244"),
-    );
+    const grass = mat(i % 2 ? "#427d43" : "#3a703c");
+    grass.map = turf;
+    const strip = new THREE.Mesh(new THREE.PlaneGeometry(7.5, 68), grass);
     strip.rotation.x = -Math.PI / 2;
     strip.position.set(-48.75 + i * 7.5, 0.015, 0);
     strip.receiveShadow = true;
@@ -229,99 +253,12 @@ export function createFootballScene(
       box(scene, dark, x, 12, z, 0.35, 24, 0.35);
       box(scene, white, x, 24, z, 5, 1, 1.5);
     }
-  const sphereGeo = new THREE.SphereGeometry(1, 12, 10);
-  const playerGroups: {
-    root: THREE.Group;
-    leftLeg: THREE.Group;
-    rightLeg: THREE.Group;
-    leftArm: THREE.Group;
-    rightArm: THREE.Group;
-  }[] = [];
-  const skinColors = ["#bd8057", "#774b37", "#e4b38d", "#54382d"];
-  function ellipsoid(
-    parent: THREE.Object3D,
-    material: THREE.Material,
-    x: number,
-    y: number,
-    z: number,
-    sx: number,
-    sy: number,
-    sz: number,
-  ) {
-    const m = new THREE.Mesh(sphereGeo, material);
-    m.position.set(x, y, z);
-    m.scale.set(sx, sy, sz);
-    m.castShadow = true;
-    parent.add(m);
-    return m;
-  }
-  for (let i = 0; i < 22; i++) {
-    const team = i < 11 ? 0 : 1,
-      keeper = i % 11 === 0,
-      shirt = mat(
-        keeper ? (team ? "#ffcc28" : "#3283fa") : team ? "#f05c49" : "#08b777",
-      ),
-      shorts = team ? dark : white,
-      skin = mat(skinColors[i % 4]);
-    const root = new THREE.Group();
-    scene.add(root);
-    root.scale.setScalar(1.12);
-    box(root, shirt, 0, 1.46, 0, 0.67, 0.64, 0.43);
-    box(root, shorts, 0, 1.02, 0, 0.68, 0.3, 0.43);
-    ellipsoid(root, skin, 0, 1.86, 0, 0.11, 0.14, 0.11);
-    ellipsoid(root, skin, 0, 2.08, 0.015, 0.235, 0.27, 0.22);
-    ellipsoid(root, dark, 0, 2.24, -0.015, 0.24, 0.13, 0.215);
-    ellipsoid(root, skin, 0, 2.07, 0.23, 0.07, 0.07, 0.06);
-    for (const x of [-0.085, 0.085])
-      ellipsoid(root, white, x, 2.13, 0.213, 0.035, 0.028, 0.015);
-    const limbs: THREE.Group[] = [];
-    for (const sign of [-1, 1]) {
-      const arm = new THREE.Group();
-      arm.position.set(sign * 0.43, 1.72, 0);
-      root.add(arm);
-      box(arm, shirt, 0, -0.13, 0, 0.22, 0.28, 0.24);
-      box(arm, skin, 0, -0.39, 0, 0.17, 0.34, 0.18);
-      ellipsoid(arm, skin, 0, -0.6, 0.01, 0.09, 0.11, 0.08);
-      const leg = new THREE.Group();
-      leg.position.set(sign * 0.19, 0.96, 0);
-      root.add(leg);
-      box(leg, skin, 0, -0.22, 0, 0.24, 0.42, 0.25);
-      box(leg, shirt, 0, -0.62, 0, 0.2, 0.38, 0.21);
-      box(leg, dark, 0, -0.85, 0.095, 0.25, 0.16, 0.42);
-      limbs.push(leg, arm);
-    }
-    const canvas = document.createElement("canvas");
-    canvas.width = 64;
-    canvas.height = 64;
-    const ctx = canvas.getContext("2d");
-    if (ctx) {
-      ctx.fillStyle = team ? "#ffffff" : "#062f26";
-      ctx.font = "bold 48px sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText(String((i % 11) + 1), 32, 49);
-    }
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    const numberMat = new THREE.MeshBasicMaterial({
-      map: texture,
-      transparent: true,
-    });
-    const front = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.4), numberMat);
-    front.position.set(0, 1.5, 0.221);
-    root.add(front);
-    const back = front.clone();
-    back.position.z = -0.221;
-    back.rotation.y = Math.PI;
-    root.add(back);
-    playerGroups.push({
-      root,
-      leftLeg: limbs[0],
-      leftArm: limbs[1],
-      rightLeg: limbs[2],
-      rightArm: limbs[3],
-    });
-  }
-  const ballGeo = new THREE.IcosahedronGeometry(0.22, 2);
+  const playerGroups = Array.from({ length: 22 }, (_, i) => {
+    const actor = createFootballActor(template, i);
+    scene.add(actor.root);
+    return actor;
+  });
+  const ballGeo = new THREE.IcosahedronGeometry(0.14, 3);
   const ballColors = [];
   for (let i = 0; i < ballGeo.attributes.position.count; i++) {
     const c = Math.floor(i / 3) % 5 === 0 ? 0.08 : 0.98;
@@ -356,16 +293,28 @@ export function createFootballScene(
   const look = new THREE.Vector3(),
     desired = new THREE.Vector3();
   let disposed = false;
+  let lastState: FootballState | null = null;
+  let lastMode: CameraMode | null = null;
+  let resized = true;
   const resize = new ResizeObserver(() => {
     if (disposed || !host.clientHeight) return;
     camera.aspect = host.clientWidth / host.clientHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(host.clientWidth, host.clientHeight);
+    resized = true;
   });
   resize.observe(host);
   return {
-    render(s: FootballState, mode: CameraMode, dt: number) {
+    render(s: FootballState, mode: CameraMode, dt: number, active = true) {
       if (disposed) return;
+      if (
+        !active &&
+        s === lastState &&
+        mode === lastMode &&
+        !resized &&
+        camera.position.distanceTo(desired) < 0.002
+      )
+        return;
       renderer.domElement.setAttribute(
         "aria-label",
         s.training
@@ -373,38 +322,21 @@ export function createFootballScene(
           : "3D stadium with twenty-two footballers and a ball",
       );
       s.players.forEach((p, i) => {
-        const model = playerGroups[i],
-          speed = Math.hypot(p.vx, p.vz),
-          swing = Math.sin((p.gait ?? 0) + i) * Math.min(speed / 6, 1) * 0.65;
-        model.root.visible = !p.inactive;
-        model.root.position.set(p.x, p.tackle > 0.65 ? -0.12 : 0, p.z);
-        model.root.rotation.y = p.facing;
-        model.root.position.y +=
-          Math.abs(Math.sin((p.gait ?? 0) * 2)) *
-          Math.min(speed / 7, 1) *
-          0.065;
-        model.root.rotation.x = Math.min(speed / 9, 1) * 0.09;
-        model.leftLeg.rotation.x = swing;
-        model.rightLeg.rotation.x = -swing;
-        model.leftArm.rotation.x = -swing * 0.8;
-        model.rightArm.rotation.x = swing * 0.8;
-        model.leftArm.rotation.z = -0.12;
-        model.rightArm.rotation.z = 0.12;
-        if (p.kick > 0)
-          model.rightLeg.rotation.x =
-            -Math.sin((p.kick / 0.4) * Math.PI) * 1.25;
-        if (p.skill > 0)
-          model.root.rotation.y +=
-            Math.sin((p.skill / 0.75) * Math.PI * 2) * 0.45;
-        if (s.phase === "goal" && p.team === (s.restartTeam === 0 ? 1 : 0)) {
-          model.leftArm.rotation.z = -2.3;
-          model.rightArm.rotation.z = 2.3;
-          model.root.position.y = Math.abs(Math.sin(s.phaseTime * 6)) * 0.35;
-        }
+        const celebrate = s.phase === "goal" && p.team !== s.restartTeam;
+        playerGroups[i].update(
+          p,
+          s.ball.owner === i,
+          active ? dt : 0,
+          i === s.selected ? s.charge : 0,
+          celebrate,
+        );
       });
-      ball.position.set(s.ball.x, s.ball.y, s.ball.z);
-      ball.rotation.z -= s.ball.vx * dt * 3;
-      ball.rotation.x += s.ball.vz * dt * 3;
+      renderer.domElement.dataset.playerPose = playerGroups[s.selected].pose();
+      ball.position.set(s.ball.x, Math.max(0.14, s.ball.y - 0.08), s.ball.z);
+      if (active) {
+        ball.rotation.z -= s.ball.vx * dt * 3;
+        ball.rotation.x += s.ball.vz * dt * 3;
+      }
       ballShadow.position.set(s.ball.x, 0.04, s.ball.z);
       ballShadow.scale.setScalar(1 + Math.max(0, s.ball.y - 0.22) * 0.2);
       const selected = s.players[s.selected];
@@ -417,18 +349,21 @@ export function createFootballScene(
           z = THREE.MathUtils.clamp(s.ball.z, -22, 22);
         desired.set(
           x + 2,
-          mode === "close" ? 13 : 24,
-          z + (mode === "close" ? 21 : 34),
+          mode === "close" ? 6.5 : 12,
+          z + (mode === "close" ? 13 : 24),
         );
         look.set(x, 0, z);
       }
       camera.position.lerp(desired, Math.min(1, dt * 4));
       camera.lookAt(look);
       renderer.render(scene, camera);
+      lastState = s;
+      lastMode = mode;
+      resized = false;
     },
     dispose() {
       if (disposed) return;
-      disposed = true;
+      disposed = true;console.info("RWOG_DISPOSE_START");
       resize.disconnect();
       renderer.domElement.removeEventListener("webglcontextlost", contextLost);
       const geometries = new Set<THREE.BufferGeometry>(),
@@ -446,11 +381,12 @@ export function createFootballScene(
             if (map) textures.add(map);
           }
       });
+      playerGroups.forEach((actor) => actor.dispose());
       geometries.forEach((g) => g.dispose());
       materials.forEach((m) => m.dispose());
       textures.forEach((t) => t.dispose());
-      renderer.dispose();
-      renderer.forceContextLoss();
+      console.info("RWOG_DISPOSE_OBJECTS");renderer.dispose();console.info("RWOG_DISPOSE_RENDERER");
+      renderer.forceContextLoss();console.info("RWOG_DISPOSE_CONTEXT");
       renderer.domElement.remove();
     },
   };

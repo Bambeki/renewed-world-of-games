@@ -1,4 +1,13 @@
 const { chromium, expect } = require("@playwright/test");
+async function capture(element, path) {
+  const page = element.page();
+  // Compositor captures need real animation frames, even when the simulation is paused.
+  await page.clock.resume();
+  await element.screenshot({ path });
+  await page.clock.pauseAt(
+    new Date((await page.evaluate(() => Date.now())) + 100),
+  );
+}
 (async () => {
   const browser = await chromium.launch({
     headless: true,
@@ -7,6 +16,9 @@ const { chromium, expect } = require("@playwright/test");
       "--use-gl=angle",
       "--use-angle=swiftshader",
       "--enable-unsafe-swiftshader",
+      ...(process.env.CHROMIUM_PATH
+        ? ["--in-process-gpu", "--no-zygote", "--single-process"]
+        : []),
     ],
     ...(process.env.CHROMIUM_PATH
       ? { executablePath: process.env.CHROMIUM_PATH }
@@ -85,9 +97,10 @@ const { chromium, expect } = require("@playwright/test");
       await page.clock.runFor(120);
     }
     if (process.env.FOOTBALL3D_SCREENSHOTS)
-      await controls.screenshot({
-        path: process.env.FOOTBALL3D_SCREENSHOTS + "/3d-playing.png",
-      });
+      await capture(
+        controls,
+        process.env.FOOTBALL3D_SCREENSHOTS + "/3d-playing.png",
+      );
     const padBefore = await controls.getAttribute("data-controlled-x");
     await page.evaluate(() => {
       Object.defineProperty(navigator, "getGamepads", {
@@ -127,9 +140,10 @@ const { chromium, expect } = require("@playwright/test");
       await match.getByLabel("3D camera", { exact: true }).selectOption(camera);
       await page.clock.runFor(500);
       if (process.env.FOOTBALL3D_SCREENSHOTS)
-        await controls.screenshot({
-          path: process.env.FOOTBALL3D_SCREENSHOTS + `/3d-${camera}.png`,
-        });
+        await capture(
+          controls,
+          process.env.FOOTBALL3D_SCREENSHOTS + `/3d-${camera}.png`,
+        );
     }
     for (const width of [1440, 768, 390]) {
       await page.setViewportSize({ width, height: 950 });
@@ -141,9 +155,10 @@ const { chromium, expect } = require("@playwright/test");
         `overflow at ${width}`,
       ).toBe(false);
       if (process.env.FOOTBALL3D_SCREENSHOTS)
-        await match.screenshot({
-          path: process.env.FOOTBALL3D_SCREENSHOTS + `/3d-${width}.png`,
-        });
+        await capture(
+          match,
+          process.env.FOOTBALL3D_SCREENSHOTS + `/3d-${width}.png`,
+        );
     }
     page.once("dialog", (d) => d.dismiss());
     await match
