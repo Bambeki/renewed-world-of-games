@@ -230,7 +230,7 @@ export function createFootballActor(template: GLTF, index: number) {
           Math.sin(Math.min(1, player.touchClock / 0.4) * Math.PI) * 0.2;
         rotate("foot_r", -touch);
       }
-      if ((player.receiving ?? 0) > 0)
+      if (ownsBall && player.kick === 0 && (player.receiving ?? 0) > 0)
         rotate("calf_r", (player.receiving ?? 0) * 0.6);
       if (player.shielding) {
         rotate("upperarm_l", -0.6, "z");

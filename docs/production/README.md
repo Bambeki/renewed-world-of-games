@@ -2,6 +2,8 @@
 
 The football branch contains an original RWG interface informed by televised football and EA SPORTS FC's public gameplay notes. It does not include EA assets, licensed teams or a claim of equivalent gameplay fidelity. Authentication, club management, transfers, Ludo and the other games remain available.
 
+The current product direction is browser-first, with Vercel as the intended web host. Native/downloadable game clients are deferred. The Docker/Caddy package below remains a separately verified deployment option; it does not imply a Vercel deployment has been performed.
+
 ## Local verification
 
 Use Node 24 and the checked-in lockfile. From the repository root:
@@ -33,6 +35,7 @@ npm run test:arcade:browser
 npm run test:3d:browser
 npm run test:football-quality:browser
 npm run test:football-production:browser
+npm run test:football-control:browser
 npm run test:football-visual:browser
 npm run test:campaigns:browser
 ```

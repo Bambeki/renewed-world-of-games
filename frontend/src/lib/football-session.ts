@@ -67,6 +67,13 @@ export function decodeFootballSave(raw: string | null, signature: string): Saved
     if (s.players[s.selected].inactive || s.players[s.selected].keeper
       || (b.owner !== null && s.players[b.owner].inactive)
       || (s.passTarget !== undefined && s.players[s.passTarget].inactive)) return null;
+    const queued = s.actionBuffer;
+    if (queued !== undefined && (!queued || Array.isArray(queued)
+      || s.phase !== "playing" || queued.player !== s.selected
+      || !index(queued.player) || s.players[queued.player].team !== 0
+      || !["shoot", "pass", "through", "lob"].includes(queued.action)
+      || !finite(queued.remaining, 0, 0.18) || !finite(queued.x, -1, 1)
+      || !finite(queued.z, -1, 1) || !finite(queued.charge, 0, 1))) return null;
     return value as SavedMatch;
   } catch { return null; }
 }

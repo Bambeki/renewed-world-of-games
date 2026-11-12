@@ -46,6 +46,14 @@ export type FootballState = {
   completedPasses?: [number, number];
   passTarget?: number;
   passTeam?: 0 | 1;
+  actionBuffer?: {
+    player: number;
+    action: "shoot" | "pass" | "through" | "lob";
+    remaining: number;
+    x: number;
+    z: number;
+    charge: number;
+  };
   players: Athlete[];
   ball: {
     x: number;
@@ -227,6 +235,7 @@ function kickoff(s: FootballState, team: 0 | 1) {
   s.charge = 0;
   s.passTarget = undefined;
   s.passTeam = undefined;
+  s.actionBuffer = undefined;
 }
 function nearest(s: FootballState, team: number, exclude = -1) {
   const candidates = s.players
@@ -273,18 +282,18 @@ function kick(
 ) {
   const p = s.players[index],
     b = s.ball;
-  const d = Math.hypot(tx - p.x, tz - p.z) || 1;
-  p.facing = Math.atan2(tx - p.x, tz - p.z);
-  b.x = p.x + ((tx - p.x) / d) * 0.95;
-  b.z = p.z + ((tz - p.z) / d) * 0.95;
-  b.y = 0.3;
-  b.vx = ((tx - p.x) / d) * speed;
-  b.vz = ((tz - p.z) / d) * speed;
+  // A kick changes velocity at the contact point. Relocating the ball first
+  // makes side-foot passes and shots visibly jump through the player's body.
+  const d = Math.hypot(tx - b.x, tz - b.z) || 1;
+  p.facing = Math.atan2(tx - b.x, tz - b.z);
+  b.vx = ((tx - b.x) / d) * speed;
+  b.vz = ((tz - b.z) / d) * speed;
   b.vy = loft;
   b.owner = null;
   b.releasedBy = index;
   s.passTarget = undefined;
   s.passTeam = undefined;
+  s.actionBuffer = undefined;
   b.lastTouch = p.team;
   b.cooldown = 0.23;
   p.kick = 0.4;
@@ -307,6 +316,7 @@ export function stepFootball(
     possession: [...old.possession],
     passes: [...(old.passes ?? [0, 0])],
     completedPasses: [...(old.completedPasses ?? [0, 0])],
+    actionBuffer: old.actionBuffer ? { ...old.actionBuffer } : undefined,
   };
   const b = s.ball;
   s.players.forEach((p) => {
@@ -319,6 +329,8 @@ export function stepFootball(
     p.shielding = false;
   });
   if (s.phase !== "playing") {
+    s.actionBuffer = undefined;
+    s.charge = 0;
     s.phaseTime -= dt;
     if (s.phaseTime <= 0) {
       if (s.phase === "goal") kickoff(s, s.restartTeam);
@@ -330,6 +342,8 @@ export function stepFootball(
   s.elapsed = Math.min(FOOTBALL_DURATION, s.elapsed + dt);
   if (s.elapsed === FOOTBALL_DURATION) {
     s.phase = "fulltime";
+    s.actionBuffer = undefined;
+    s.charge = 0;
     announce(
       s,
       s.score[0] > s.score[1]
@@ -345,6 +359,43 @@ export function stepFootball(
   // A goalkeeper always remains autonomous; switching never traps the user in goal.
   if (s.players[s.selected].keeper) s.selected = nearest(s, 0);
   const controlled = s.players[s.selected];
+  if (input.switch) s.charge = 0;
+  if (s.actionBuffer) {
+    s.actionBuffer.remaining -= dt;
+    if (s.actionBuffer.remaining <= 0 || s.actionBuffer.player !== s.selected || input.switch) {
+      if (s.actionBuffer.action === "shoot") s.charge = 0;
+      s.actionBuffer = undefined;
+    }
+  }
+  const approaching = b.owner === null && b.y < 1.2
+    && (s.passTarget === s.selected || dist(controlled, b) <= 3);
+  if (approaching && input.shootHeld) s.charge = Math.min(1, s.charge + dt / 0.9);
+  else if (b.owner !== s.selected && !approaching && !s.actionBuffer) s.charge = 0;
+  const pressed = input.shoot ? "shoot" : input.lob ? "lob" : input.through ? "through" : input.pass ? "pass" : undefined;
+  let actionInput = input;
+  if (pressed) {
+    s.actionBuffer = undefined;
+    if (b.owner === null && dist(controlled, b) <= 3 && b.y < 1.2) {
+      const aim = Math.hypot(input.x, input.z);
+      s.actionBuffer = {
+        player: s.selected, action: pressed, remaining: 0.18,
+        x: pressed === "shoot" ? limit(input.x, -1, 1) : aim ? input.x / aim : Math.sin(controlled.facing),
+        z: pressed === "shoot" ? limit(input.z, -1, 1) : aim ? input.z / aim : Math.cos(controlled.facing),
+        charge: pressed === "shoot" ? limit(s.charge, 0, 1) : 0,
+      };
+      if (pressed !== "shoot") s.charge = 0;
+      announce(s, `First-time ${pressed === "shoot" ? "shot" : "pass"} ready. Meet the ball.`);
+    } else if (b.owner !== s.selected) s.charge = 0;
+  } else if (b.owner === s.selected && s.actionBuffer) {
+    const queued = s.actionBuffer;
+    actionInput = {
+      ...input, x: queued.x, z: queued.z,
+      shoot: queued.action === "shoot", pass: queued.action === "pass",
+      through: queued.action === "through", lob: queued.action === "lob",
+    };
+    s.charge = queued.charge;
+    s.actionBuffer = undefined;
+  } else if (b.owner !== null && b.owner !== s.selected) s.actionBuffer = undefined;
   controlled.shielding = input.shield && b.owner === s.selected;
   const magnitude = Math.hypot(input.x, input.z);
   const sprint = input.sprint && controlled.stamina > 5 && !input.shield;
@@ -482,16 +533,17 @@ export function stepFootball(
       }
     } else if (human) {
       if (input.shootHeld) s.charge = Math.min(1, s.charge + dt / 0.9);
-      if (input.shoot) {
+      if (actionInput.shoot) {
         const power = limit(s.charge, 0.18, 1);
-        const targetZ = limit(owner.z * 0.22 + input.z * 3.5, -3.2, 3.2);
+        const targetZ = limit(owner.z * 0.22 + actionInput.z * 3.5, -3.2, 3.2);
         kick(s, b.owner, 54, targetZ, 20 + power * 13, power > 0.8 ? 3.4 : 1.1);
         s.shots[0]++;
         s.charge = 0;
         announce(s, "Shot on goal!");
-      } else if (input.pass || input.through || input.lob) {
-        const ax = magnitude ? input.x / magnitude : Math.sin(owner.facing),
-          az = magnitude ? input.z / magnitude : Math.cos(owner.facing);
+      } else if (actionInput.pass || actionInput.through || actionInput.lob) {
+        const aim = Math.hypot(actionInput.x, actionInput.z);
+        const ax = aim ? actionInput.x / aim : Math.sin(owner.facing),
+          az = aim ? actionInput.z / aim : Math.cos(owner.facing);
       const target = s.players
           .map((p, i) => ({ p, i }))
           .filter(
@@ -517,17 +569,17 @@ export function stepFootball(
           kick(
             s,
             b.owner,
-            target.p.x + (input.through ? 6 : target.p.vx * 0.3),
+            target.p.x + (actionInput.through ? 6 : target.p.vx * 0.3),
             target.p.z + target.p.vz * 0.3,
-            input.through ? 23 : 18,
-            input.lob ? 7.2 : 0.6,
+            actionInput.through ? 23 : 18,
+            actionInput.lob ? 7.2 : 0.6,
           );
           beginPass(s, target.i);
           s.selected = target.i;
           s.charge = 0;
           announce(
             s,
-            `${input.lob ? "Lofted ball" : input.through ? "Through ball" : "Pass"} to ${target.p.name}.`,
+            `${actionInput.lob ? "Lofted ball" : actionInput.through ? "Through ball" : "Pass"} to ${target.p.name}.`,
           );
         }
       }
@@ -586,6 +638,7 @@ export function stepFootball(
         b.cooldown = 0.7;
         s.passTarget = undefined;
         s.passTeam = undefined;
+        s.actionBuffer = undefined;
         s.charge = 0;
         if (b.lastTouch === 0) s.selected = challenger;
         announce(s, "A challenge wins the ball.");
@@ -611,6 +664,7 @@ export function stepFootball(
         const reach = moving > 6 ? 1.65 : close ? 0.48 : 0.85;
         carrier.touchClock = Math.max(0, (carrier.touchClock ?? 0) - dt);
         if (
+          (carrier.receiving ?? 0) <= 0.12 &&
           Math.abs(b.x) <= 52.5 &&
           Math.abs(b.z) <= 34 &&
           (carrier.touchClock === 0 || (moving < 0.3 && dist(carrier, b) > 0.8))
@@ -694,9 +748,30 @@ export function stepFootball(
         s.passTarget = undefined;
         s.passTeam = undefined;
         b.owner = catcher;
-        s.players[catcher].touchClock = 0;
-        s.players[catcher].receiving = 0.3;
-        if (s.players[catcher].keeper) s.players[catcher].save = 0.65;
+        const receiver = s.players[catcher];
+        if (catcher !== s.selected) s.charge = 0;
+        receiver.touchClock = 0.16;
+        receiver.receiving = 0.3;
+        if (s.actionBuffer?.player !== catcher) s.actionBuffer = undefined;
+        if (receiver.keeper) {
+          receiver.save = 0.65;
+          b.vx = b.vz = b.vy = 0;
+        } else {
+          // Cushion the incoming momentum, then allow a deliberate directional
+          // first touch. Do not replace it with a dribble impulse on the next frame.
+          const incomingSpeed = Math.hypot(b.vx, b.vz);
+          const human = catcher === s.selected || receiver.team === 0;
+          const directed = human && magnitude > 0.15;
+          const dx = directed ? input.x / magnitude : b.vx / (incomingSpeed || 1);
+          const dz = directed ? input.z / magnitude : b.vz / (incomingSpeed || 1);
+          const speed = human && input.shield ? 0.45 : directed
+            ? (input.sprint ? 3.2 : 1.4) * Math.min(1, magnitude)
+            : Math.min(1.1, incomingSpeed * 0.12);
+          b.vx = dx * speed;
+          b.vz = dz * speed;
+          b.vy = 0;
+          b.y = 0.22;
+        }
         b.cooldown = 0.55;
         b.lastTouch = s.players[catcher].team;
         s.keeperHold = 0;
@@ -713,6 +788,8 @@ export function stepFootball(
   }
   // A dribble crossing a line is out too, even during a control window.
   if (Math.abs(b.x) > 52.5 || Math.abs(b.z) > 34) {
+    s.actionBuffer = undefined;
+    s.charge = 0;
     if (Math.abs(b.x) > 52.5 && Math.abs(b.z) < 3.66 && b.y < 2.44) {
       const scorer = b.x > 0 ? 0 : 1;
       s.score[scorer]++;

@@ -1,10 +1,12 @@
-# RWG Football matchday verification — 11 November 2026
+# RWG Football matchday verification — 12 November 2026
 
 ## Implemented checkpoint
 
 This increment builds on the recovered skinned-football checkpoint `909efe20db830fb810452dc3be960fd2b7e3068d`, which preserves the earlier `e918dd2` work. The original recovery workspace was retained. Main was not merged or modified.
 
 Implemented: an immersive match screen and original RWG broadcast graphics; four cameras including a stable TV rail; automatic/performance/balanced/high graphics choices; culling and lightweight contact shadows; distance-synchronized locomotion; receiving, kick, shield and keeper-gather overlays; CPU open-lane passing and three reaction levels; pass/completion statistics; isolated club/mode/lineup-aware device checkpoints; save/reload/resume and corrupt-save recovery; phone portrait and landscape controls; existing league/club/Ludo/campaign features retained.
+
+The browser remains the active game client; native/downloadable clients are deferred. The latest control increment removes kick-position jumps, cushions incoming passes, supports directional/shielded first touches and buffers first-time actions for 180 ms. Intended receivers can prepare shot power before reception. Switching, interception, expiration and pause cancel stale actions.
 
 This is an exhibition mode. Client scores and device saves are never trusted as league results. All management changes continue to use the existing authenticated, revision-checked API.
 
@@ -17,7 +19,7 @@ Environment: Linux, Node 24.22.1, npm 11.9.0, Playwright 1.61.1, Chromium softwa
 | Clean `npm ci --ignore-scripts` and Prisma generation | Pass; generated Prisma client 6.19.3 |
 | Workspace typecheck and lint | Pass |
 | Shared, backend and frontend production builds | Pass; 18 Next.js routes |
-| Unit/engine tests | 61 passed: 17 backend/shared, 44 frontend |
+| Unit/engine tests | 71 passed: 17 backend/shared, 54 frontend |
 | Native PostgreSQL 16 integration | Both integration scenarios and migrations passed in GitHub Actions |
 | Production containers | Both images built; migration target ran; non-root API/PostgreSQL health and web/login/bundled-GLB smoke checks passed in CI |
 | Runtime dependency audit | Fresh CI audit reported zero runtime vulnerabilities for the checked-in lockfile |
@@ -31,9 +33,11 @@ Environment: Linux, Node 24.22.1, npm 11.9.0, Playwright 1.61.1, Chromium softwa
 | Adventure/Roman campaigns browser | Pass: all missions/battles completed through ordinary controls, saves, restart/replay, keyboard and emulated touch |
 | `git diff --check` | Pass |
 
-The new tests check CPU passing/blocked lanes, difficulty reaction windows, deterministic state continuation after a checkpoint, malformed payload rejection, settings recovery, production environment validation, configured JWT lifetime, bounded auth limits and compatibility with legacy bcrypt passwords. New registrations reject passwords above bcrypt's 72-byte limit; existing long passwords retain the old login behavior, with bounded request input.
+The new tests also cover launch-position continuity, receiving momentum and direction, shot preparation, one-touch action timing, cancellation and saved-action validation. They check CPU passing/blocked lanes, difficulty reaction windows, deterministic state continuation after a checkpoint, malformed payload rejection, settings recovery, production environment validation, configured JWT lifetime, bounded auth limits and compatibility with legacy bcrypt passwords. New registrations reject passwords above bcrypt's 72-byte limit; existing long passwords retain the old login behavior, with bounded request input.
 
 Local browser debugging exposed stale HUD writes rewinding the 2D clock; its simulation ref now remains authoritative. Test clocks are installed before match RAFs. Screenshot evidence now has a separate ordinary-real-time browser path. Chromium uses its normal process model: the serverless single-process graphics flags caused local screenshot/teardown stalls and are no longer injected. Assertions were retained, including animation, full time, graphics recovery and unchanged management data. Functional software-rendering CI action waits are bounded at 60 seconds to accommodate shared-runner CPU delays; the separate real-time visual suite retains its ordinary interaction deadlines.
+
+The new first-touch browser suite prepares valid club-specific device checkpoints, then uses ordinary keyboard controls for passing, charged shooting and pause cancellation. It does not modify live simulation globals. Each scenario has an isolated browser context; the test clock is paused only after page hydration, and rendering is advanced deliberately while assets load.
 
 ## CI and dependency evidence
 

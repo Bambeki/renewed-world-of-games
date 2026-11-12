@@ -124,6 +124,7 @@ export default function Match3D({
     keys.current.clear();
     input.current = neutralInput();
     current.current.charge = 0;
+    current.current.actionBuffer = undefined;
     stickPointer.current = null;
     setStick({ x: 0, z: 0 });
   }
@@ -552,6 +553,10 @@ export default function Match3D({
         data-shots={snapshot.shots[0]}
         data-selected={snapshot.selected}
         data-ball-owner={snapshot.ball.owner ?? "loose"}
+        data-ball-x={snapshot.ball.x.toFixed(2)}
+        data-ball-z={snapshot.ball.z.toFixed(2)}
+        data-home-passes={snapshot.passes?.[0] ?? 0}
+        data-buffered-action={snapshot.actionBuffer?.action ?? ""}
         data-away-passes={snapshot.passes?.[1] ?? 0}
         onKeyDown={(e) => {
           const key = e.key.toLowerCase();
@@ -738,7 +743,9 @@ export default function Match3D({
         <p>
           Aim passes with the movement keys. Approach from an angle, shield from
           a challenge, and release a charged shot near the box. Yellow marks
-          your controlled footballer. Keepers distribute automatically.
+          your controlled footballer. Move as a pass arrives to direct the first
+          touch, or hold Shield to settle it. Press pass or release a shot just
+          before reception for a first-time action. Keepers distribute automatically.
         </p>
       </details>
       <div className={styles.touch} aria-label="3D touch controls">
