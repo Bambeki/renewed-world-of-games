@@ -1,0 +1,362 @@
+.ludo-page {
+  max-width: 1300px;
+  margin: auto;
+}
+.ludo-setup {
+  max-width: 760px;
+}
+.ludo-setup select {
+  max-width: 220px;
+}
+.ludo-names {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.ludo-game-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+.game .ludo-board-section {
+  padding: 18px;
+  min-width: 0;
+}
+.ludo-board-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ludo-board-heading > span {
+  font-size: 11px;
+  color: var(--muted);
+}
+.ludo-board {
+  display: grid;
+  grid-template-columns: repeat(15, minmax(0, 1fr));
+  grid-template-rows: repeat(15, minmax(0, 1fr));
+  width: 100%;
+  aspect-ratio: 1;
+  position: relative;
+  background: #e9eff4;
+  border: 5px solid #243449;
+  border-radius: 12px;
+  overflow: hidden;
+  isolation: isolate;
+  box-shadow: 0 14px 35px #0004;
+}
+.ludo-yard {
+  position: absolute;
+  width: 40%;
+  height: 40%;
+  z-index: -1;
+  display: flex;
+  justify-content: center;
+  padding-top: 4%;
+  border: 6px solid #ffffff20;
+}
+.ludo-yard:after {
+  content: "";
+  position: absolute;
+  inset: 19%;
+  background: #f5f5ed;
+  border-radius: 18%;
+  box-shadow: inset 0 0 0 3px #ffffff55;
+}
+.ludo-yard span {
+  font-size: clamp(9px, 1vw, 13px);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: white;
+  z-index: 1;
+}
+.ludo-red {
+  --ludo-colour: #de555e;
+  background-color: #de555e;
+}
+.ludo-green {
+  --ludo-colour: #26976d;
+  background-color: #26976d;
+}
+.ludo-yellow {
+  --ludo-colour: #e5b935;
+  background-color: #e5b935;
+}
+.ludo-blue {
+  --ludo-colour: #5188db;
+  background-color: #5188db;
+}
+.ludo-centre {
+  position: absolute;
+  top: 40%;
+  left: 40%;
+  width: 20%;
+  height: 20%;
+  background: conic-gradient(
+    from -45deg,
+    #26976d 0deg 90deg,
+    #e5b935 90deg 180deg,
+    #5188db 180deg 270deg,
+    #de555e 270deg
+  );
+  z-index: -1;
+}
+.ludo-cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  z-index: 1;
+}
+.ludo-track {
+  background-color: #f5f7fa;
+  box-shadow: inset 0 0 0 0.5px #7e8a9b;
+}
+.ludo-track.ludo-red {
+  background: #e99398;
+}
+.ludo-track.ludo-green {
+  background: #6fcaa6;
+}
+.ludo-track.ludo-yellow {
+  background: #f1d97f;
+}
+.ludo-track.ludo-blue {
+  background: #96b8eb;
+}
+.ludo-cell[class*="ludo-"]:not(.ludo-track) {
+  box-shadow: none;
+}
+.ludo-safe {
+  position: absolute;
+  font-size: clamp(9px, 1.5vw, 18px);
+  color: #374c66;
+  line-height: 1;
+}
+.game button.ludo-token {
+  position: relative;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow:
+    0 2px 3px #0005,
+    inset 0 0 0 1px #0003;
+  width: 85%;
+  height: 85%;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(8px, 1vw, 13px);
+  font-weight: 900;
+  color: #101c29;
+  background: var(--ludo-colour);
+  z-index: 2;
+}
+.game button.ludo-token:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.game button.ludo-playable {
+  outline: 2px solid #101b2d;
+  outline-offset: 1px;
+  cursor: pointer;
+  filter: brightness(1.2);
+}
+.game button.ludo-playable:hover {
+  transform: scale(1.12);
+}
+.ludo-stacked {
+  flex-wrap: wrap;
+}
+.game .ludo-stacked .ludo-token {
+  width: 47%;
+  height: 47%;
+  font-size: clamp(6px, 0.8vw, 10px);
+  border-width: 1px;
+}
+.game .ludo-board-note {
+  font-size: 12px;
+  margin-bottom: 0;
+}
+.ludo-roll-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 18px 0;
+}
+.ludo-die {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  background: #f5f7fa;
+  color: #142138;
+  border-radius: 14px;
+  font-size: 34px;
+  font-weight: 900;
+  box-shadow: inset 0 -4px 0 #d6dfe8;
+}
+.ludo-colour-tag {
+  display: inline-block;
+  font-size: 11px;
+  border: 1px solid var(--surface-border);
+  padding: 4px 8px;
+  border-radius: 20px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.ludo-move-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 14px 0;
+}
+.game .ludo-move-list button {
+  font-size: 12px;
+  min-height: 44px;
+  padding: 8px;
+}
+.game .ludo-turn {
+  border-top: 4px solid;
+}
+.game .ludo-accent-red {
+  border-top-color: #de555e;
+}
+.game .ludo-accent-green {
+  border-top-color: #26976d;
+}
+.game .ludo-accent-yellow {
+  border-top-color: #e5b935;
+}
+.game .ludo-accent-blue {
+  border-top-color: #5188db;
+}
+.ludo-scoreboard article {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--surface-border);
+  font-size: 12px;
+}
+.ludo-scoreboard article:last-child {
+  border: 0;
+}
+.ludo-scoreboard article > div {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ludo-scoreboard small {
+  display: block;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.ludo-scoreboard b {
+  white-space: nowrap;
+  font-size: 11px;
+}
+.ludo-player-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.ludo-current-player strong {
+  color: var(--primary);
+}
+.ludo-rules,
+.ludo-history {
+  background: var(--surface);
+  padding: 18px 22px;
+  border: 1px solid var(--surface-border);
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+.ludo-rules summary,
+.ludo-history summary {
+  font-weight: 700;
+  cursor: pointer;
+  min-height: 28px;
+}
+.ludo-rules ol {
+  list-style: decimal;
+  padding-left: 22px;
+  margin-top: 15px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.8;
+}
+.ludo-rules li {
+  margin-bottom: 7px;
+}
+.ludo-rules p,
+.ludo-history p {
+  font-size: 12px;
+}
+.ludo-turn h2 {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1050px) {
+  .ludo-game-layout {
+    grid-template-columns: 1fr;
+  }
+  .ludo-board-section {
+    max-width: 680px;
+  }
+  .ludo-side {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .ludo-side details {
+    grid-column: 1/-1;
+  }
+  .ludo-yard span {
+    font-size: 12px;
+  }
+  .game button.ludo-token {
+    font-size: 12px;
+  }
+}
+@media (max-width: 560px) {
+  .ludo-names,
+  .ludo-side {
+    grid-template-columns: 1fr;
+  }
+  .ludo-game-layout {
+    gap: 0;
+  }
+  .game .ludo-board-section {
+    padding: 10px;
+  }
+  .ludo-board {
+    border-width: 3px;
+  }
+  .ludo-yard {
+    border-width: 3px;
+  }
+  .ludo-yard span {
+    font-size: 9px;
+  }
+  .game button.ludo-token {
+    border-width: 1px;
+    font-size: 10px;
+  }
+  .ludo-rules,
+  .ludo-history {
+    padding: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .game button.ludo-playable:hover {
+    transform: none;
+  }
+}

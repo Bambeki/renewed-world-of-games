@@ -10,13 +10,13 @@ datasource db {
 // ─── Auth ───────────────────────────────────────────────────────────────────
 
 model User {
-  id           String         @id @default(uuid()) @db.Uuid
-  email        String         @unique @db.VarChar(255)
-  username     String         @unique @db.VarChar(50)
-  passwordHash String         @map("password_hash") @db.VarChar(255)
-  avatarUrl    String?        @map("avatar_url") @db.VarChar(500)
-  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique @db.VarChar(255)
+  username     String   @unique @db.VarChar(50)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  avatarUrl    String?  @map("avatar_url") @db.VarChar(500)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   team          Team?
   refreshTokens RefreshToken[]
@@ -50,8 +50,9 @@ model Team {
   reputation     Int      @default(50)
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  owner   User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  players Player[]
+  owner     User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  players   Player[]
+  gameState GameState?
 
   @@map("teams")
 }
@@ -90,4 +91,13 @@ model Player {
 
   @@index([teamId])
   @@map("players")
+}
+
+// One isolated single-manager season per team. Existing team/player data is retained.
+model GameState {
+  teamId  String @id @map("team_id") @db.Uuid
+  payload Json
+  team    Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@map("game_states")
 }

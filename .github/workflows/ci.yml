@@ -2,41 +2,121 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, feature/investor-demo-mvp, feature/ludo-local, feature/football-3d, feature/release-candidate, feature/football-browser-quality]
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, feature/investor-demo-mvp, feature/ludo-local, feature/football-3d, feature/release-candidate]
 
 jobs:
   check:
-    runs-on: ubuntu-latest
-
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: rwog
+          POSTGRES_PASSWORD: rwog_test_password
+          POSTGRES_DB: rwog_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U rwog -d rwog_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://rwog:rwog_test_password@localhost:5432/rwog_test?schema=public
+      JWT_SECRET: ci-test-only-secret-not-for-deployment
+      JWT_ACCESS_EXPIRES_IN: 2h
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Generate Prisma client
-        run: npm run db:generate -w backend
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run db:deploy
+      - run: npm run build -w shared
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build -w frontend
+      - run: npx playwright install --with-deps chromium
+      - name: Verify API and browser journeys on PostgreSQL
         env:
-          DATABASE_URL: postgresql://rwog:rwog_dev_password@localhost:5432/renewed_world_of_games?schema=public
-
-      - name: Build shared package
-        run: npm run build -w shared
-
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Lint frontend
-        run: npm run lint -w frontend
-
-      - name: Build backend
-        run: npm run build -w backend
-
-      - name: Build frontend
-        run: npm run build -w frontend
+          CAMPAIGN_SCREENSHOTS: /tmp/rwog-campaign-screenshots
+          FOOTBALL_VISUAL_SCREENSHOTS: /tmp/rwog-campaign-screenshots
+        run: |
+          mkdir -p /tmp/rwog-campaign-screenshots
+          npm run start -w backend > /tmp/rwog-api.log 2>&1 &
+          npm run start -w frontend -- --hostname 127.0.0.1 > /tmp/rwog-web.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://localhost:4001/api/v1/health && curl --fail --silent http://localhost:4000/login > /dev/null; then break; fi
+            sleep 1
+          done
+          npm run test:integration
+          npm run test:browser
+          npm run test:ludo:browser
+          npm run test:arcade:browser
+          npm run test:3d:browser
+          npm run test:football-quality:browser
+          npm run test:football-production:browser
+          npm run test:football-control:browser
+          npm run test:football-visual:browser
+          npm run test:campaigns:browser
+      - name: Build and smoke-test production containers
+        if: ${{ !cancelled() }}
+        env:
+          RWG_DOMAIN: example.test
+          POSTGRES_PASSWORD: ci-compose-validation-only
+        run: |
+          docker compose -f docker/compose.production.yml config --quiet
+          docker build --target runtime --build-arg NEXT_PUBLIC_API_URL=/api/v1 -t rwg-ci-runtime .
+          docker build --target migrate --build-arg NEXT_PUBLIC_API_URL=/api/v1 -t rwg-ci-migrate .
+          docker run --rm --network host -e DATABASE_URL rwg-ci-migrate
+          trap 'docker logs rwg-ci-api 2>/dev/null || true; docker logs rwg-ci-web 2>/dev/null || true; docker logs rwg-ci-proxy 2>/dev/null || true; docker rm -f rwg-ci-api rwg-ci-web rwg-ci-proxy 2>/dev/null || true' EXIT
+          docker run -d --network host --name rwg-ci-api -e DATABASE_URL -e JWT_SECRET -e JWT_ACCESS_EXPIRES_IN -e NODE_ENV=production -e PORT=4101 -e CORS_ORIGIN=https://example.test rwg-ci-runtime node backend/dist/main.js
+          docker run -d --network host --name rwg-ci-web -e INTERNAL_API_URL=http://127.0.0.1:4101/api/v1 rwg-ci-runtime node node_modules/next/dist/bin/next start frontend --port 4100 --hostname 127.0.0.1
+          node <<'JS'
+          const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+          (async () => {
+            for (let attempt = 0; attempt < 30; attempt++) {
+              try {
+                const api = await fetch('http://127.0.0.1:4101/api/v1/health');
+                const web = await fetch('http://127.0.0.1:4100/login');
+                const asset = await fetch('http://127.0.0.1:4100/assets/football/player.glb');
+                if ((await api.json()).status === 'ok' && web.ok && asset.ok && Buffer.from(await asset.arrayBuffer()).subarray(0, 4).toString() === 'glTF') {
+                  console.log('PASS production containers: non-root API connects to PostgreSQL; web serves login and bundled football asset.');
+                  return;
+                }
+              } catch {}
+              await pause(1000);
+            }
+            throw new Error('Production container health check failed');
+          })().catch(error => { console.error(error); process.exit(1); });
+          JS
+          # Use the shipped proxy config with host-network upstream addresses.
+          # Localhost gets Caddy's isolated local CA; public ACME needs the deployment domain.
+          sed -e 's/api:4001/127.0.0.1:4101/' -e 's/web:4000/127.0.0.1:4100/' docker/Caddyfile > /tmp/rwg-ci-Caddyfile
+          docker run -d --network host --name rwg-ci-proxy -e RWG_DOMAIN=localhost:4443 -v /tmp/rwg-ci-Caddyfile:/etc/caddy/Caddyfile:ro caddy:2-alpine
+          for attempt in $(seq 1 30); do
+            if curl --insecure --fail --silent https://localhost:4443/api/v1/health; then break; fi
+            sleep 1
+          done
+          CONTAINER_WEB_URL=https://localhost:4443 node tests/production-container-browser.cjs
+      - name: Runtime dependency audit
+        if: ${{ !cancelled() }}
+        run: npm audit --omit=dev --json | tee /tmp/rwg-runtime-audit.json
+      - name: Browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-browser-screenshots
+          path: |
+            /tmp/rwog-campaign-screenshots
+            /tmp/rwg-runtime-audit.json
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Server logs on failure
+        if: failure()
+        run: cat /tmp/rwog-api.log /tmp/rwog-web.log 2>/dev/null || true

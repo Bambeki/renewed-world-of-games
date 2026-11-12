@@ -1,0 +1,10 @@
+{$RWG_DOMAIN} {
+  encode zstd gzip
+  handle /api/* {
+    reverse_proxy api:4001
+  }
+  handle {
+    reverse_proxy web:4000
+  }
+  header Strict-Transport-Security "max-age=31536000"
+}

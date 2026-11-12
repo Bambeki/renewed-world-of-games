@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   UnauthorizedException,
@@ -20,6 +21,7 @@ export class AuthService {
     username: string,
     password: string,
   ): Promise<{ id: string; email: string; username: string }> {
+    if (Buffer.byteLength(password, 'utf8') > 72) throw new BadRequestException('Password must be at most 72 UTF-8 bytes.');
     const existingUser = await this.prisma.user.findUnique({
       where: { email },
     });
