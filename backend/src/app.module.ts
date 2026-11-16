@@ -1,3 +1,4 @@
+import { GameModule } from './game/game.module';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
@@ -18,6 +19,7 @@ import { TeamsModule } from './teams/teams.module';
     AuthModule,
     TeamsModule,
     PlayersModule,
+    GameModule,
   ],
 })
 export class AppModule {}

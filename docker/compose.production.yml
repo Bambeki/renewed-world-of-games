@@ -1,0 +1,83 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rwg
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a unique database password}
+      POSTGRES_DB: rwg
+    volumes:
+      - production_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rwg -d rwg"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  migrate:
+    build:
+      context: ..
+      target: migrate
+      args:
+        NEXT_PUBLIC_API_URL: /api/v1
+    environment:
+      DATABASE_URL: postgresql://rwg:${POSTGRES_PASSWORD}@postgres:5432/rwg?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+  api:
+    build:
+      context: ..
+      target: runtime
+    command: ["node", "backend/dist/main.js"]
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4001
+      DATABASE_URL: postgresql://rwg:${POSTGRES_PASSWORD}@postgres:5432/rwg?schema=public
+      JWT_SECRET: ${JWT_SECRET:?Set a unique JWT secret of at least 32 characters}
+      JWT_ACCESS_EXPIRES_IN: 15m
+      CORS_ORIGIN: https://${RWG_DOMAIN:?Set the public domain}
+      TRUST_PROXY: "1"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4001/api/v1/health').then(r=>r.json()).then(b=>process.exit(b.status==='ok'?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+  web:
+    environment:
+      INTERNAL_API_URL: http://api:4001/api/v1
+    build:
+      context: ..
+      target: runtime
+      args:
+        NEXT_PUBLIC_API_URL: /api/v1
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      RWG_DOMAIN: ${RWG_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+volumes:
+  production_pg:
+  caddy_data:
+  caddy_config:

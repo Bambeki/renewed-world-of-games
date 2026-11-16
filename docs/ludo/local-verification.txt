@@ -1,0 +1,43 @@
+   ▲ Next.js 15.5.18
+   - Local:        http://127.0.0.1:4000
+   - Network:      http://127.0.0.1:4000
+
+ ✓ Starting...
+[Nest] 18  - 11/01/2026, 8:56:23 PM     LOG [NestFactory] Starting Nest application...
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [InstanceLoader] AppModule dependencies initialized +16ms
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [InstanceLoader] DatabaseModule dependencies initialized +0ms
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [InstanceLoader] ConfigHostModule dependencies initialized +1ms
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [InstanceLoader] JwtModule dependencies initialized +0ms
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [InstanceLoader] ConfigModule dependencies initialized +1ms
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [InstanceLoader] HealthModule dependencies initialized +0ms
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [InstanceLoader] TeamsModule dependencies initialized +1ms
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [InstanceLoader] PlayersModule dependencies initialized +0ms
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [InstanceLoader] GameModule dependencies initialized +0ms
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [InstanceLoader] AuthModule dependencies initialized +0ms
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [RoutesResolver] HealthController {/api/v1/health}: +10ms
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [RouterExplorer] Mapped {/api/v1/health, GET} route +4ms
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [RoutesResolver] AuthController {/api/v1/auth}: +0ms
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [RouterExplorer] Mapped {/api/v1/auth/register, POST} route +1ms
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [RouterExplorer] Mapped {/api/v1/auth/login, POST} route +0ms
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [RouterExplorer] Mapped {/api/v1/auth/me, GET} route +1ms
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [RoutesResolver] TeamsController {/api/v1/teams}: +0ms
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [RouterExplorer] Mapped {/api/v1/teams/my-team, GET} route +0ms
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [RouterExplorer] Mapped {/api/v1/teams/my-team, PATCH} route +1ms
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [RoutesResolver] PlayersController {/api/v1/players}: +0ms
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [RouterExplorer] Mapped {/api/v1/players, GET} route +0ms
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [RouterExplorer] Mapped {/api/v1/players/:id, GET} route +0ms
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [RoutesResolver] GameController {/api/v1/game}: +1ms
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [RouterExplorer] Mapped {/api/v1/game, GET} route +0ms
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [RouterExplorer] Mapped {/api/v1/game/lineup, PUT} route +0ms
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [RouterExplorer] Mapped {/api/v1/game/play, POST} route +1ms
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [RouterExplorer] Mapped {/api/v1/game/buy, POST} route +0ms
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [RouterExplorer] Mapped {/api/v1/game/sell, POST} route +0ms
+[Nest] 18  - 11/01/2026, 8:56:24 PM     LOG [NestApplication] Nest application successfully started +16ms
+Backend running on http://localhost:4001/api/v1
+ ✓ Ready in 498ms
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> renewed-world-of-games@0.1.0 test:ludo:browser
+> node tests/ludo-browser.cjs
+
+PASS Ludo browser: 2/3/4 players, legal dice/moves, board clicks, capture, pending-move reload, win/resume/rematch, reset confirmation, malformed saves, 3 viewport widths; no page exceptions or HTTP 5xx.

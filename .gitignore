@@ -31,6 +31,8 @@ Thumbs.db
 
 # Testing
 coverage/
+docs/release/screenshots/
+docs/football-browser-quality/screenshots/
 
 # Prisma
 backend/prisma/*.db

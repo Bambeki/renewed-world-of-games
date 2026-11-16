@@ -1,0 +1,23 @@
+GitHub Actions verification excerpt
+Run: https://github.com/Bambeki/renewed-world-of-games/actions/runs/42487747074
+Code commit: 7f6b1b7a62da985acaa218fa01807e98a865bde0
+Job: 128753225216
+Conclusion observed: success
+Environment: Ubuntu 24.04, Node 20, PostgreSQL 16
+
+2026-11-08T14:02:44.7476996Z All migrations have been successfully applied.
+2026-11-08T14:02:57.4621658Z # tests 13
+2026-11-08T14:02:57.4621995Z # pass 13
+2026-11-08T14:02:57.4622157Z # fail 0
+2026-11-08T14:02:58.5129646Z # tests 32
+2026-11-08T14:02:58.5129998Z # pass 32
+2026-11-08T14:02:58.5130167Z # fail 0
+2026-11-08T14:03:38.5596519Z # tests 2
+2026-11-08T14:03:38.5598669Z # pass 2
+2026-11-08T14:03:38.5599309Z # fail 0
+2026-11-08T14:03:44.0743159Z PASS browser journey: registration, login, squad/details, lineup save/reload, match/report, standings, buy/sell, club edit, logout; 8 routes × 3 viewport widths; no page errors.
+2026-11-08T14:03:45.8656679Z PASS Ludo browser: 2/3/4 players, legal dice/moves, board clicks, capture, pending-move reload, win/resume/rematch, reset confirmation, malformed saves, 3 viewport widths; no page exceptions or HTTP 5xx.
+2026-11-08T14:04:18.4223092Z PASS playable football: keyboard/touch movement, action buttons, pause, reset cancel/confirm, full time, close; 3 viewport widths; league unchanged; no page/5xx errors.
+2026-11-08T14:05:53.8314926Z PASS 3D football Chromium: real WebGL rendering, keyboard movement/sprint/charged shot/actions, pointer controls, pause/reset, three cameras, three widths, tab-hide pause, context-loss retry/disposal, close, unchanged league and no page/5xx errors.
+2026-11-08T14:06:03.5370773Z PASS campaigns Chromium: catalog, all 3 adventure missions and all 3 Roman battles via normal controls, completion, replay, reset cancel/confirm for both games, save/reload, corrupted saves, keyboard and emulated touch, 3 routes × 3 widths; no page/5xx errors.
+

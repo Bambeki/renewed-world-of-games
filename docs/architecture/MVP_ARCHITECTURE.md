@@ -60,3 +60,7 @@ Renewed-World-of-Games/
 | Backend | 4001 |
 | PostgreSQL | 5432 |
 | Redis | 6379 |
+
+## Investor-demo increment (October 2026)
+
+The playable single-manager implementation is documented in [the architecture audit](../demo/AUDIT.md). It adds the `game_states` table, authenticated game API, formation/lineup selection, match simulation, league fixtures/standings, fixed-price transfers and manager pages. The Phase 0 description above records the original foundation; use [the demo guide](../demo/INVESTOR_WALKTHROUGH.md) for current setup and scope.

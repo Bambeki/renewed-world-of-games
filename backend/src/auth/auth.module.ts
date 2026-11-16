@@ -4,6 +4,8 @@ import { DatabaseModule } from '../database/database.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { AuthRateLimitGuard } from './guards/auth-rate-limit.guard';
+import { jwtAccessSeconds } from '../config/production';
 
 @Module({
   imports: [
@@ -11,12 +13,12 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     JwtModule.registerAsync({
       useFactory: () => ({
         secret: process.env.JWT_SECRET ?? 'development-secret',
-        signOptions: { expiresIn: '15m' },
+        signOptions: { expiresIn: jwtAccessSeconds(process.env.JWT_ACCESS_EXPIRES_IN) },
       }),
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, AuthRateLimitGuard],
   exports: [AuthService, JwtModule],
 })
 export class AuthModule {}

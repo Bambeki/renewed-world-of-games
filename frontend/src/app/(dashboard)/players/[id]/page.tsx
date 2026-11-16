@@ -46,7 +46,7 @@ function formatDate(value: string | null): string {
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('en', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'EUR',
     maximumFractionDigits: 0,
   }).format(value);
 }
