@@ -3,6 +3,13 @@ import CampaignShell from "@/components/campaigns/campaign-shell";
 import styles from "@/components/campaigns/campaigns.module.css";
 const games = [
   {
+    title: "Football quick play",
+    kind: "11 v 11 · No sign-in needed",
+    text: "Go straight to the pitch. Choose a formation, play against the computer, or practise finishing against the keeper.",
+    href: "/games/football",
+    action: "Play football now",
+  },
+  {
     title: "RWG Football",
     kind: "11 v 11 · Matchday",
     text: "Your club, on the pitch. Animated players, a TV broadcast camera, passing opponents and a match you can resume on this device.",

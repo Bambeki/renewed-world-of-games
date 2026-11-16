@@ -39,8 +39,14 @@ export default function HomePage() {
         </div>
         <div className="flex flex-wrap gap-3">
           <Link
-            href="/login"
+            href="/games/football"
             className="rounded-lg bg-[var(--primary)] px-7 py-3 font-semibold text-black hover:bg-[var(--primary-dark)]"
+          >
+            Play football now
+          </Link>
+          <Link
+            href="/login"
+            className="rounded-lg border border-[var(--surface-border)] px-7 py-3 font-semibold hover:border-[var(--primary)]"
           >
             Log in
           </Link>

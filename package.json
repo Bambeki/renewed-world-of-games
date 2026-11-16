@@ -32,6 +32,7 @@
     "test:football-quality:browser": "node tests/football-quality-browser.cjs",
     "test:football-production:browser": "node tests/football-production-browser.cjs",
     "test:football-control:browser": "node tests/football-control-browser.cjs",
+    "test:football-quickplay:browser": "node tests/football-quickplay-browser.cjs",
     "test:football-visual:browser": "node tests/football-visual-browser.cjs"
   },
   "devDependencies": {

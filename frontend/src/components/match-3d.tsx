@@ -20,6 +20,7 @@ type Props = {
   away: string;
   roster: { name: string; overall: number }[];
   formation: string;
+  squadLabel?: string;
   storageKey?: string;
   onClose: () => void;
 };
@@ -29,6 +30,7 @@ export default function Match3D({
   away,
   roster,
   formation,
+  squadLabel = "Your saved XI",
   storageKey,
   onClose,
 }: Props) {
@@ -435,7 +437,7 @@ export default function Match3D({
           <p>
             {training
               ? "Finishing drill · One attacker and goalkeeper · Three active minutes"
-              : `11 v 11 · ${formation} · Your saved XI · Exhibition`}
+              : `11 v 11 · ${formation} · ${squadLabel} · Exhibition`}
           </p>
         </div>
         <button
@@ -746,6 +748,12 @@ export default function Match3D({
           your controlled footballer. Move as a pass arrives to direct the first
           touch, or hold Shield to settle it. Press pass or release a shot just
           before reception for a first-time action. Keepers distribute automatically.
+        </p>
+        <p>
+          Teammates offer passing angles and forward runs. After passing, your
+          receiver meets the ball until you move, shield, or prepare a shot.
+          When defending, switch to press the carrier while teammates cover
+          the route to goal and track runners.
         </p>
       </details>
       <div className={styles.touch} aria-label="3D touch controls">

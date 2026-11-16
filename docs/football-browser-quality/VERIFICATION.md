@@ -1,4 +1,10 @@
-# RWG Football matchday verification — 12 November 2026
+# RWG Football matchday verification — 16 November 2026
+
+## Latest browser increment
+
+The next increment continues from verified checkpoint `2de9cc9`: coordinated team support, forward runs, pressure/cover/marking and pass-reception assistance. `/games/football` provides anonymous quick play with isolated formation/training saves. See [team movement and quick play](TEAM_MOVEMENT.md) for behavior, manual acceptance checks and verification commands. Local typecheck, lint, production builds (19 routes) and 81 unit/engine tests passed. CI now also includes the anonymous browser journey; inspect the run attached to the exact branch commit for its result.
+
+The evidence below records the preceding verified checkpoint and remains its historical baseline.
 
 ## Implemented checkpoint
 

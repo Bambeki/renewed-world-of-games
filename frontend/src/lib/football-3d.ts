@@ -179,7 +179,7 @@ function announce(s: FootballState, text: string) {
 }
 
 /** Distance from a defender to the interior of a proposed passing lane. */
-function laneClearance(s: FootballState, from: Athlete, to: Athlete) {
+function laneClearance(s: FootballState, from: Pick<Athlete, "x" | "z" | "team">, to: { x: number; z: number }) {
   const dx = to.x - from.x, dz = to.z - from.z;
   const length = dx * dx + dz * dz || 1;
   let clearance = 12;
@@ -253,8 +253,9 @@ function run(p: Athlete, tx: number, tz: number, speed: number, dt: number) {
   const dx = tx - p.x,
     dz = tz - p.z,
     d = Math.hypot(dx, dz);
-  const targetX = d > 0.15 ? (dx / d) * speed : 0,
-    targetZ = d > 0.15 ? (dz / d) * speed : 0;
+  const arrivalSpeed = Math.min(speed, d * 3);
+  const targetX = d > 0.15 ? (dx / d) * arrivalSpeed : 0,
+    targetZ = d > 0.15 ? (dz / d) * arrivalSpeed : 0;
   const response = 1 - Math.exp(-7 * dt);
   p.vx += (targetX - p.vx) * response;
   p.vz += (targetZ - p.vz) * response;
@@ -272,6 +273,133 @@ function run(p: Athlete, tx: number, tz: number, speed: number, dt: number) {
     p.facing += limit(turn, -8 * dt, 8 * dt);
   }
 }
+
+type MovementRole = "keeper" | "carry" | "support" | "run" | "press" | "cover" | "mark" | "receive" | "recover";
+export type FootballMovement = { x: number; z: number; speed: number; role: MovementRole };
+
+/** Plan from one snapshot so player-array order cannot give a team extra information.
+ * Targets are derived, not saved: older device checkpoints keep the same format.
+ */
+export function planFootballMovement(s: FootballState): (FootballMovement | null)[] {
+  const b = s.ball, carrier = b.owner === null ? null : s.players[b.owner];
+  const possession = carrier?.team ?? (b.owner === null && s.passTarget !== undefined ? s.passTeam : undefined);
+  const moves: (FootballMovement | null)[] = s.players.map(() => null);
+  const assign = (i: number, x: number, z: number, speed: number, role: MovementRole) => {
+    moves[i] = { x: limit(x, -49, 49), z: limit(z, -30, 30), speed, role };
+  };
+  // Leading only a short distance avoids chasing an unreachable extrapolation.
+  const meet = (p: Athlete) => {
+    const time = limit(dist(p, b) / 22, 0.04, b.y > 1.2 ? 0.55 : 0.35);
+    return { x: limit(b.x + b.vx * time, -50, 50), z: limit(b.z + b.vz * time, -32, 32) };
+  };
+  for (const team of [0, 1] as const) {
+    const direction = team === 0 ? 1 : -1, progress = b.x * direction;
+    const owns = possession === team;
+    const outfield = s.players.map((p, i) => ({ p, i }))
+      .filter(({ p }) => !p.inactive && !p.keeper && p.team === team);
+    const pace = team === 1 ? s.difficulty === "casual" ? 0.94 : s.difficulty === "elite" ? 1.04 : 1 : 1;
+    const reserved = new Set<number>();
+    for (const { p, i } of s.players.map((p, i) => ({ p, i }))) {
+      if (p.inactive || p.team !== team || !p.keeper) continue;
+      const goalX = -direction * 48;
+      assign(i, goalX + direction * limit((52 - Math.abs(b.x)) / 25, 0, 2), limit(b.z * 0.65, -3.3, 3.3), 5.3, "keeper");
+    }
+    // Formation rows move as a compact unit, rather than dragging every player
+    // by the same offset. Defenders remain behind a supported attack.
+    for (const { p, i } of outfield) {
+      const row = p.baseX * direction < -20 ? 0 : p.baseX * direction < 5 ? 1 : 2;
+      const lines = owns
+        ? [limit(progress - 22, -35, 15), limit(progress - 8, -18, 33), limit(progress + 10, 4, 44)]
+        : [limit(progress - 12, -42, 7), limit(progress - 2, -31, 23), limit(progress + 9, -17, 37)];
+      assign(i, lines[row] * direction, p.baseZ * (owns ? 1 : 0.78) + b.z * 0.18, 4.5 * pace, "recover");
+    }
+    if (carrier?.team === team && !carrier.keeper && b.owner !== null) {
+      const owner = b.owner;
+      const obstacle = s.players.filter(q => !q.inactive && q.team !== team
+        && (q.x - carrier.x) * direction > -0.5 && (q.x - carrier.x) * direction < 6
+        && Math.abs(q.z - carrier.z) < 4).sort((a, c) => dist(a, carrier) - dist(c, carrier))[0];
+      const lane = obstacle ? carrier.z + (carrier.z >= obstacle.z ? 6 : -6) : carrier.z * 0.85;
+      assign(owner, direction * 49, limit(lane, -24, 24), 5.1 * pace, "carry");
+      reserved.add(owner);
+      // Two different angles provide a safe outlet and a forward option. Search
+      // nearby lanes before committing, so support does not hide behind a marker.
+      const side = carrier.z >= 0 ? -1 : 1;
+      for (const [depth, flank] of [[-7, side], [7, -side]]) {
+        const candidates = [8, 12, 16].map(width => {
+          const point = { x: limit(carrier.x + direction * depth, -43, 43), z: limit(carrier.z + flank * width, -27, 27) };
+          const space = Math.min(8, ...s.players.filter(q => !q.inactive && q.team !== team).map(q => dist(q, point)));
+          return { ...point, score: Math.min(5, laneClearance(s, carrier, point)) * 2 + space - width * 0.12 };
+        }).sort((a, c) => c.score - a.score);
+        const target = candidates[0];
+        const support = outfield.filter(({ p, i }) => !reserved.has(i)
+          && (p.baseX * direction >= -20 || carrier.x * direction < -15))
+          .sort((a, c) => (dist(a.p, target) + (a.p.baseX * direction > 5 ? 16 : 0))
+            - (dist(c.p, target) + (c.p.baseX * direction > 5 ? 16 : 0)))[0];
+        if (support) {
+          assign(support.i, target.x, target.z, 5.3 * pace, "support");
+          reserved.add(support.i);
+        }
+      }
+      for (const { p, i } of outfield) {
+        if (reserved.has(i) || p.baseX * direction < 5) continue;
+        // Forwards stretch the defence, then bend toward the box near goal.
+        const x = limit(progress + 16, 12, 45) * direction;
+        const z = progress > 25 ? p.baseZ * 0.5 : p.baseZ + b.z * 0.12;
+        assign(i, x, z, 5.9 * pace, "run");
+      }
+    }
+    if (b.owner === null && s.passTarget !== undefined && s.passTeam === team) {
+      const receiver = s.players[s.passTarget];
+      if (!receiver.inactive && !receiver.keeper) {
+        const target = meet(receiver);
+        assign(s.passTarget, target.x, target.z, 5.7 * pace, "receive");
+        reserved.add(s.passTarget);
+      }
+    }
+    if (owns) continue;
+    // Exactly one primary presser. The next player protects the route to goal
+    // instead of joining a crowd at the ball. Manual defenders count too.
+    const primary = outfield.filter(({ i }) => !reserved.has(i)).sort((a, c) => {
+      const rank = (p: Athlete) => dist(p, b) + Math.max(0, (p.x - b.x) * direction) * 0.18;
+      return rank(a.p) - rank(c.p);
+    })[0];
+    if (primary) {
+      const target = b.owner === null ? meet(primary.p) : {
+        x: b.x + (carrier?.vx ?? 0) * 0.22 - direction * 0.65,
+        z: b.z + (carrier?.vz ?? 0) * 0.22,
+      };
+      assign(primary.i, target.x, target.z, 5.6 * pace, "press");
+      reserved.add(primary.i);
+    }
+    if (carrier && outfield.length > 3) {
+      const target = { x: b.x - direction * 6, z: b.z * 0.7 };
+      const cover = outfield.filter(({ i }) => !reserved.has(i))
+        .sort((a, c) => dist(a.p, target) - dist(c.p, target))[0];
+      if (cover) {
+        assign(cover.i, target.x, target.z, 5.2 * pace, "cover");
+        reserved.add(cover.i);
+      }
+      // Assign threats one-to-one, prioritising runners closest to our goal.
+      // A goal-side cushion leaves room to react without body-stacking.
+      const threats = s.players.filter(p => !p.inactive && !p.keeper && p.team !== team && p !== carrier
+        && p.x * direction < Math.min(12, progress + 12))
+        .sort((a, c) => a.x * direction - c.x * direction);
+      for (const threat of threats) {
+        const target = { x: threat.x - direction * 1.8, z: threat.z * 0.96 };
+        const marker = outfield.filter(({ p, i }) => !reserved.has(i) && p.baseX * direction < 5)
+          .sort((a, c) => {
+            const rank = ({ p, i }: typeof a) => dist(p, target) + Math.abs(target.x - moves[i]!.x) * 0.5;
+            return rank(a) - rank(c);
+          })[0];
+        if (!marker) break;
+        assign(marker.i, target.x, target.z, 5.1 * pace, "mark");
+        reserved.add(marker.i);
+      }
+    }
+  }
+  return moves;
+}
+
 function kick(
   s: FootballState,
   index: number,
@@ -407,11 +535,16 @@ export function stepFootball(
   const pace =
     (input.shield ? 3.1 : sprint ? 8.6 : 5.7) *
     (0.9 + controlled.overall / 700);
+  // Meet an intended pass when the player gives no movement command. As soon
+  // as they aim, shield or prepare a shot, manual first-touch control takes over.
+  const assist = b.owner === null && s.passTarget === s.selected && s.passTeam === 0
+    && magnitude < 0.06 && !input.shield && !input.shootHeld && !pressed && !s.actionBuffer
+    ? planFootballMovement(s)[s.selected] : null;
   run(
     controlled,
-    controlled.x + (magnitude ? (input.x / magnitude) * 5 : 0),
-    controlled.z + (magnitude ? (input.z / magnitude) * 5 : 0),
-    magnitude ? pace * Math.min(magnitude, 1) : 0,
+    assist?.x ?? controlled.x + (magnitude ? (input.x / magnitude) * 5 : 0),
+    assist?.z ?? controlled.z + (magnitude ? (input.z / magnitude) * 5 : 0),
+    assist?.speed ?? (magnitude ? pace * Math.min(magnitude, 1) : 0),
     dt,
   );
   if (
@@ -440,50 +573,11 @@ export function stepFootball(
       33,
     );
   }
-  const pressing = [nearest(s, 0), nearest(s, 1)];
+  const movement = planFootballMovement(s);
   for (let i = 0; i < s.players.length; i++) {
     if (i === s.selected || s.players[i].inactive) continue;
-    const p = s.players[i],
-      direction = p.team === 0 ? 1 : -1;
-    if (p.keeper) {
-      const goalX = p.team === 0 ? -48 : 48;
-      run(
-        p,
-        goalX + direction * limit((52 - Math.abs(b.x)) / 25, 0, 2),
-        limit(b.z * 0.65, -3.3, 3.3),
-        5.3,
-        dt,
-      );
-      continue;
-    }
-    if (i === b.owner) {
-      const obstacle = s.players
-        .filter(
-          (q) =>
-            !q.inactive &&
-            q.team !== p.team &&
-            Math.abs(q.x - p.x) < 5 &&
-            Math.abs(q.z - p.z) < 4,
-        )
-        .sort((a, b) => dist(a, p) - dist(b, p))[0];
-      const lane = obstacle ? p.z + (p.z >= obstacle.z ? 6 : -6) : p.z * 0.92;
-      run(p, p.team === 1 ? -49 : 49, limit(lane, -24, 24), 5.1, dt);
-      continue;
-    }
-    const owns = b.owner !== null && s.players[b.owner].team === p.team;
-    if (!owns && i === pressing[p.team]) {
-      run(p, b.x, b.z, 5.2, dt);
-      continue;
-    }
-    const shift =
-      limit(b.x * 0.25, -12, 12) + (owns ? direction * 9 : -direction * 3);
-    const targetX = limit(p.baseX + shift, -43, 43),
-      targetZ = limit(
-        p.baseZ + b.z * 0.15 + Math.sin(s.elapsed * 0.8 + i) * 1.2,
-        -29,
-        29,
-      );
-    run(p, targetX, targetZ, 4.3, dt);
+    const target = movement[i];
+    if (target) run(s.players[i], target.x, target.z, target.speed, dt);
   }
   // Bodies have volume: separation prevents dribbling straight through defenders.
   for (let i = 0; i < s.players.length; i++)

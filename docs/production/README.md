@@ -23,6 +23,8 @@ npm run dev
 
 Open `/matches`, sign in, and select **Play 3D match**. The match has keyboard, pointer/touch and standard-mapped gamepad controls. The TV broadcast camera retains nearby passing options. Performance/Automatic modes disable expensive shadow maps. High enables shadows. The CPU can pass through open lanes, carry the ball and shoot. Difficulty changes its challenge/decision timing.
 
+For a browser playtest without an account/API, open `/games/football`. Quick play uses the same 3D engine and has three formations, a finishing drill and device-only checkpoints separate from signed-in club matches. Teammates now create passing angles and forward runs; defenders press, cover and track runners. Idle intended receivers meet passes while manual input retains priority. See [team movement and quick play](../football-browser-quality/TEAM_MOVEMENT.md).
+
 The match saves locally under the club ID and mode, with a lineup signature. Reload, reopen the same mode and choose **Resume saved match**. Invalid or incompatible saves cannot enter the simulation. Starting a fresh exhibition replaces the checkpoint after play starts. The saved exhibition is local only; it never changes league scores, money or player ownership. Clearing browser storage removes it.
 
 With a migrated **test** PostgreSQL database and running API/web, run all browser checks:
@@ -36,6 +38,7 @@ npm run test:3d:browser
 npm run test:football-quality:browser
 npm run test:football-production:browser
 npm run test:football-control:browser
+npm run test:football-quickplay:browser
 npm run test:football-visual:browser
 npm run test:campaigns:browser
 ```
