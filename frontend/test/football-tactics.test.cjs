@@ -53,6 +53,11 @@ test('a turnover immediately replaces attacking runs with pressure, cover and re
  const plan=planFootballMovement(s).slice(0,11);assert.ok(!plan.some(p=>p?.role==='support'||p?.role==='run'));
  assert.equal(plan.filter(p=>p?.role==='press').length,1);assert.equal(plan.filter(p=>p?.role==='cover').length,1);
 });
+test('the opponent closes an idle carrier, wins a challenge and starts an attack',()=>{
+ const s=step(play(),480);
+ assert.ok(s.possession[1]>0,'the presser must close within actual tackle range');
+ assert.ok(s.passes[1]+s.shots[1]>0,'winning the ball must lead to an attacking decision');
+});
 test('loose-ball pursuit anticipates a short piece of the ball trajectory for each team',()=>{
  const s=play();Object.assign(s.ball,{owner:null,x:10,z:10,vx:8,vz:-4});
  const plan=planFootballMovement(s);

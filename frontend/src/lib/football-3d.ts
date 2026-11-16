@@ -365,8 +365,10 @@ export function planFootballMovement(s: FootballState): (FootballMovement | null
     })[0];
     if (primary) {
       const target = b.owner === null ? meet(primary.p) : {
-        x: b.x + (carrier?.vx ?? 0) * 0.22 - direction * 0.65,
-        z: b.z + (carrier?.vz ?? 0) * 0.22,
+        // Close to the carrier's body, not beyond a ball already dribbled ahead.
+        // Stopping goal-side of that ball can leave the tackle out of reach.
+        x: carrier!.x + carrier!.vx * 0.22 - direction * 0.9,
+        z: carrier!.z + carrier!.vz * 0.22,
       };
       assign(primary.i, target.x, target.z, 5.6 * pace, "press");
       reserved.add(primary.i);

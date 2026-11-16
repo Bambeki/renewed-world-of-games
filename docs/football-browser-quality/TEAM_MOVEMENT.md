@@ -24,7 +24,7 @@ This is still rule-based exhibition AI. These movement rules do not implement of
 
 ## Checks
 
-Local typecheck, lint, production builds and all 81 unit/engine tests passed (17 backend/shared, 64 frontend). Ten new tests cover passing angles, cover/marking, all formations, blocked support lanes, mirrored teams, turnovers, interception, receiver assistance/manual priority and deterministic save/resume. The prior ball control and complete-match regressions also passed.
+Local typecheck, lint, production builds and all 82 unit/engine tests passed (17 backend/shared, 65 frontend). Eleven new tests cover passing angles, cover/marking, all formations, blocked support lanes, mirrored teams, turnovers, closing within actual tackle range and starting an attack, interception, receiver assistance/manual priority and deterministic save/resume. The prior ball control and complete-match regressions also passed.
 
 ```bash
 npm run typecheck
