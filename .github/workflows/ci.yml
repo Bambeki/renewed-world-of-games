@@ -55,6 +55,7 @@ jobs:
             sleep 1
           done
           npm run test:integration
+          npm run test:football-quickplay:browser
           npm run test:browser
           npm run test:ludo:browser
           npm run test:arcade:browser
@@ -62,7 +63,6 @@ jobs:
           npm run test:football-quality:browser
           npm run test:football-production:browser
           npm run test:football-control:browser
-          npm run test:football-quickplay:browser
           npm run test:football-visual:browser
           npm run test:campaigns:browser
       - name: Build and smoke-test production containers

@@ -30,14 +30,14 @@ export default function FootballQuickPlay() {
             <div className={styles.tags} aria-label="Match format">
               <span>11 v 11</span><span>Single player</span><span>No sign-in needed</span>
             </div>
-            <label className={styles.formation}>
-              Your formation
-              <select value={formation} onChange={(event) => setFormation(event.target.value)}>
+            <div className={styles.formation}>
+              <label htmlFor="quick-play-formation">Your formation</label>
+              <select id="quick-play-formation" value={formation} onChange={(event) => setFormation(event.target.value)}>
                 <option value="4-4-2">4-4-2 · Balanced</option>
                 <option value="4-3-3">4-3-3 · Wide attack</option>
                 <option value="3-5-2">3-5-2 · Midfield numbers</option>
               </select>
-            </label>
+            </div>
             <div className={styles.actions}>
               <button className={styles.play} onClick={() => setMode("match")}>Play quick match <span aria-hidden="true">↗</span></button>
               <button onClick={() => setMode("training")}>Practice finishing</button>
