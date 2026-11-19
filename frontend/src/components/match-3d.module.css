@@ -86,6 +86,7 @@
 .minimap { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); width: clamp(105px, 12vw, 160px); opacity: .85; pointer-events: none; filter: drop-shadow(0 3px 8px #0008); }
 /* Leave the near touchline clear while the taker raises and delivers the ball. */
 .viewport[data-restart="throw-in"] .minimap { bottom: 110px; }
+.viewport[data-restart="throw-in"] .playerHUD { display: none; }
 .overlay {
   pointer-events: none; position: absolute; inset: 0;
   display: flex; justify-content: center; align-items: center; flex-direction: column;
