@@ -645,6 +645,12 @@ export default function Match3D({
           <b data-testid="3d-clock">{minute}′ <small>{snapshot.phase === "fulltime" ? "FT" : running ? "LIVE" : "PAUSED"}</small></b>
         </div>
         <div className={styles.broadcastMark}>RWG <span>LIVE</span><small>{training ? "TRAINING" : "EXHIBITION"}</small></div>
+        {ready && running && snapshot.phase === "restart" && snapshot.restart && (
+          <div className={styles.restartBanner} role="status">
+            <strong>{snapshot.restart.kind === "throw-in" ? "THROW-IN" : snapshot.restart.kind === "corner" ? "CORNER" : "GOAL KICK"}</strong>
+            <span>{snapshot.restart.team === 0 ? snapshot.phaseTime > 2 ? "Your restart · Getting ready…" : "Your restart · Hold direction to aim, then Pass" : "Visitors restart · Cover the receiver"}</span>
+          </div>
+        )}
         {ready && (
           <svg
             className={styles.minimap}

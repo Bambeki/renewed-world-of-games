@@ -81,6 +81,8 @@ const {chromium,expect}=require('@playwright/test'),fs=require('node:fs');
     }
     await expect(controls(page)).toHaveAttribute('data-restart',kind);await expect(controls(page)).toHaveAttribute('data-restart-team','0');
     await expect(controls(page)).toHaveAttribute('data-phase','restart');
+    await expect(region(page).getByRole('status').filter({hasText:kind==='throw-in'?'THROW-IN':kind==='corner'?'CORNER':'GOAL KICK'})).toBeVisible();
+    if(out){await page.clock.runFor(500);await page.screenshot({path:out+'/football-'+kind+'-setup.png',fullPage:true})}
     await page.keyboard.press('Escape');await page.clock.runFor(100);
     const checkpoint=await page.evaluate(()=>localStorage.getItem('rwog.football.match.v1:quickplay:4-4-2:exhibition'));
     expect(JSON.parse(checkpoint).state.restart.kind).toBe(kind);
