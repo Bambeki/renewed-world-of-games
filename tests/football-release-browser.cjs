@@ -88,7 +88,17 @@ const {chromium,expect}=require('@playwright/test'),fs=require('node:fs');
     await expect(controls(page)).toHaveAttribute('data-phase','restart');
     const notice=region(page).getByRole('status',{name:'Restart instructions',exact:true});
     await expect(notice).toBeVisible();await expect(notice).toContainText(kind==='throw-in'?'THROW-IN':kind==='corner'?'CORNER':'GOAL KICK');
-    if(out){await page.clock.runFor(500);await page.screenshot({path:out+'/football-'+kind+'-setup.png',fullPage:true})}
+    if(out){
+     await page.clock.runFor(500);await page.screenshot({path:out+'/football-'+kind+'-setup.png',fullPage:true});
+     if(kind==='throw-in'){
+      for(const [width,height] of [[390,950],[844,390]]){
+       await page.setViewportSize({width,height});await page.clock.runFor(160);
+       expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);
+       await page.screenshot({path:out+`/football-throw-in-${width}x${height}.png`,fullPage:true});
+      }
+      await page.setViewportSize({width:1280,height:900});await page.clock.runFor(160);
+     }
+    }
     await page.keyboard.press('Escape');await page.clock.runFor(100);
     const checkpoint=await page.evaluate(()=>localStorage.getItem('rwog.football.match.v1:quickplay:4-4-2:exhibition'));
     expect(JSON.parse(checkpoint).state.restart.kind).toBe(kind);
