@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, develop, feature/investor-demo-mvp, feature/ludo-local, feature/football-3d, feature/release-candidate, feature/football-browser-quality]
+    branches: [main, develop, feature/investor-demo-mvp, feature/ludo-local, feature/football-3d, feature/release-candidate, feature/football-browser-quality, feature/browser-release-polish]
   pull_request:
-    branches: [main, develop, feature/investor-demo-mvp, feature/ludo-local, feature/football-3d, feature/release-candidate]
+    branches: [main, develop, feature/investor-demo-mvp, feature/ludo-local, feature/football-3d, feature/release-candidate, feature/football-browser-quality]
 
 jobs:
   check:
@@ -64,7 +64,12 @@ jobs:
           npm run test:football-production:browser
           npm run test:football-control:browser
           npm run test:football-visual:browser
+          npm run test:football-release:browser
           npm run test:campaigns:browser
+      - name: Rehearse backup and restore on a separate disposable database
+        env:
+          RESTORE_REPORT: /tmp/rwog-campaign-screenshots/backup-restore.json
+        run: node tests/backup-restore.cjs
       - name: Build and smoke-test production containers
         if: ${{ !cancelled() }}
         env:

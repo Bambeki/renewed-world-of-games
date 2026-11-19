@@ -172,9 +172,19 @@ export function createFootballActor(template: GLTF, index: number) {
       dt: number,
       charge: number,
       celebrate: boolean,
+      animate = true,
+      preparingThrow = false,
     ) {
       root.visible = !player.inactive;
       if (player.inactive) return;
+      root.position.set(player.x, 0.012, player.z);
+      const turn = Math.atan2(
+        Math.sin(player.facing - heading), Math.cos(player.facing - heading),
+      );
+      heading += turn * (1 - Math.exp(-14 * dt));
+      root.rotation.set(0, heading, 0);
+      idleClock += dt;
+      if (!animate) return;
       const speed = Math.hypot(player.vx, player.vz);
       const target =
         speed < 0.15
@@ -190,7 +200,6 @@ export function createFootballActor(template: GLTF, index: number) {
                   Math.min(1, (speed - 5) / 3.5),
                 ];
       const response = 1 - Math.exp(-14 * dt);
-      idleClock += dt;
       const stridePhase = ((player.gait ?? 0) / (Math.PI * 2)) % 1;
       actions.forEach((action, i) => {
         weights[i] += (target[i] - weights[i]) * response;
@@ -204,13 +213,6 @@ export function createFootballActor(template: GLTF, index: number) {
       cleanPose.forEach(({ bone, rotation }) => bone.quaternion.copy(rotation));
       mixer.update(0);
       cleanPose.forEach(({ bone, rotation }) => rotation.copy(bone.quaternion));
-      root.position.set(player.x, 0.012, player.z);
-      const turn = Math.atan2(
-        Math.sin(player.facing - heading),
-        Math.cos(player.facing - heading),
-      );
-      heading += turn * (1 - Math.exp(-14 * dt));
-      root.rotation.set(0, heading, 0);
       if (player.kick > 0) {
         const contact = Math.pow(player.kick / 0.4, 0.7);
         rotate("thigh_r", -contact * 0.95);
@@ -256,10 +258,23 @@ export function createFootballActor(template: GLTF, index: number) {
         rotate("upperarm_l", -2.1, "z");
         rotate("upperarm_r", 2.1, "z");
       }
+      if (preparingThrow || (player.throwing ?? 0) > 0) {
+        const release = preparingThrow ? 0 : 1 - Math.min(1, (player.throwing ?? 0) / 0.5);
+        rotate("upperarm_l", -2.55 + release * 1.6);
+        rotate("upperarm_r", -2.55 + release * 1.6);
+        rotate("lowerarm_l", -0.65 * (1 - release));
+        rotate("lowerarm_r", -0.65 * (1 - release));
+      }
     },
     dispose() {
       mixer.stopAllAction();
       mixer.uncacheRoot(body);
+      const skeletons = new Set<THREE.Skeleton>();
+      body.traverse(object => {
+        const mesh = object as THREE.SkinnedMesh;
+        if (mesh.isSkinnedMesh) skeletons.add(mesh.skeleton);
+      });
+      skeletons.forEach(skeleton => skeleton.dispose());
     },
   };
 }

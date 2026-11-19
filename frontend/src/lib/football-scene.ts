@@ -3,6 +3,7 @@ import { FootballState } from "./football-3d";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { createFootballActor } from "./football-actor";
 import type { GraphicsQuality } from "./football-session";
+import { FootballFrameMonitor, footballPixelRatio, type FootballPerformanceReport } from "./football-performance";
 export type CameraMode = "follow" | "broadcast" | "close" | "telecast";
 export async function createFootballScene(
   host: HTMLDivElement,
@@ -17,10 +18,11 @@ export async function createFootballScene(
     alpha: false,
     powerPreference: "high-performance",
   });
-  let quality = initialQuality, automaticScale = 1;
+  let quality = initialQuality;
+  const performance = new FootballFrameMonitor(initialQuality);
   function applyGraphics() {
-    const scale = quality === "performance" ? 0.7 : quality === "high" ? 1.5 : quality === "auto" ? automaticScale : 1;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, scale));
+    const scale = performance.scale;
+    renderer.setPixelRatio(footballPixelRatio(host.clientWidth, host.clientHeight, window.devicePixelRatio, scale));
     renderer.shadowMap.enabled = quality === "high";
     renderer.domElement.dataset.graphicsQuality = quality;
     renderer.domElement.dataset.renderScale = String(scale);
@@ -329,11 +331,14 @@ export async function createFootballScene(
   let lastState: FootballState | null = null;
   let lastMode: CameraMode | null = null;
   let resized = true;
-  let measuredFrames = 0, measuredTime = 0;
+  let animatedPlayers = 0;
+  const frustum = new THREE.Frustum(), cameraMatrix = new THREE.Matrix4();
+  const playerBounds = new THREE.Sphere(new THREE.Vector3(), 3);
   const resize = new ResizeObserver(() => {
     if (disposed || !host.clientHeight) return;
     camera.aspect = host.clientWidth / host.clientHeight;
     camera.updateProjectionMatrix();
+    applyGraphics();
     renderer.setSize(host.clientWidth, host.clientHeight);
     resized = true;
   });
@@ -341,10 +346,27 @@ export async function createFootballScene(
   return {
     setGraphics(next: GraphicsQuality) {
       quality = next;
-      automaticScale = 1;
+      performance.setQuality(next);
       applyGraphics();
       renderer.setSize(host.clientWidth, host.clientHeight);
       resized = true;
+    },
+    recordPerformance(frameSeconds: number, workMs: number, active: boolean) {
+      if (!active) { performance.resetWindow(); return; }
+      if (performance.record(frameSeconds, workMs)) {
+        applyGraphics();
+        renderer.setSize(host.clientWidth, host.clientHeight);
+        resized = true;
+      }
+    },
+    getPerformance(): FootballPerformanceReport | null {
+      const sample = performance.sample;
+      return sample && {
+        ...sample, quality, pixelRatio: renderer.getPixelRatio(),
+        width: renderer.domElement.width, height: renderer.domElement.height,
+        drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles,
+        animatedPlayers,
+      };
     },
     render(s: FootballState, mode: CameraMode, dt: number, active = true) {
       if (disposed) return;
@@ -362,14 +384,25 @@ export async function createFootballScene(
           ? "3D training pitch with one attacker and one goalkeeper"
           : "3D stadium with twenty-two footballers and a ball",
       );
+      camera.updateMatrixWorld();
+      cameraMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+      frustum.setFromProjectionMatrix(cameraMatrix);
+      animatedPlayers = 0;
       s.players.forEach((p, i) => {
         const celebrate = s.phase === "goal" && p.team !== s.restartTeam;
+        playerBounds.center.set(p.x, 1, p.z);
+        // Simulation and root motion always run. Bone work is needed only for
+        // visible players, the controlled player and the current ball carrier.
+        const animate = i === s.selected || i === s.ball.owner || frustum.intersectsSphere(playerBounds);
+        if (animate && !p.inactive) animatedPlayers++;
         playerGroups[i].update(
           p,
           s.ball.owner === i,
           active ? dt : 0,
           i === s.selected ? s.charge : 0,
           celebrate,
+          animate,
+          s.phase === "restart" && s.restart?.kind === "throw-in" && s.restart.taker === i,
         );
         contactTransform.position.set(p.x, 0.05, p.z);
         contactTransform.rotation.set(-Math.PI / 2, 0, 0);
@@ -388,8 +421,10 @@ export async function createFootballScene(
       ballShadow.scale.setScalar(1 + Math.max(0, s.ball.y - 0.22) * 0.2);
       const selected = s.players[s.selected];
       ring.position.set(selected.x, 0.06, selected.z);
-      const receiver = s.passTarget === undefined ? null : s.players[s.passTarget];
-      receiverRing.visible = Boolean(receiver && s.passTeam === 0 && s.ball.owner === null);
+      const restartTarget = s.restart?.team === 0 ? s.restart.target : undefined;
+      const target = restartTarget ?? s.passTarget;
+      const receiver = target === undefined ? null : s.players[target];
+      receiverRing.visible = Boolean(receiver && (restartTarget !== undefined || (s.passTeam === 0 && s.ball.owner === null)));
       if (receiver) receiverRing.position.set(receiver.x, 0.065, receiver.z);
       if (mode === "broadcast") {
         desired.set(0, 66, 88);
@@ -415,18 +450,7 @@ export async function createFootballScene(
       camera.lookAt(look);
       renderer.render(scene, camera);
       renderer.domElement.dataset.drawCalls = String(renderer.info.render.calls);
-      if (active && dt > 0 && quality === "auto") {
-        measuredTime += dt;
-        measuredFrames++;
-        if (measuredFrames >= 45) {
-          if (measuredTime / measuredFrames > 0.035 && automaticScale > 0.75) {
-            automaticScale = 0.75;
-            applyGraphics();
-            renderer.setSize(host.clientWidth, host.clientHeight);
-          }
-          measuredFrames = measuredTime = 0;
-        }
-      }
+      renderer.domElement.dataset.animatedPlayers = String(animatedPlayers);
       lastState = s;
       lastMode = mode;
       resized = false;
