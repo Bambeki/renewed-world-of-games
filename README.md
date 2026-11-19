@@ -1,8 +1,10 @@
 # Renewed World of Games
 
-## Football matchday update
+## Browser football release candidate
 
-The football browser-quality branch now has an immersive RWG match screen, a TV broadcast camera, four graphics settings, distance-synchronized skinned locomotion, clear passing-receiver feedback, opponent passing, three challenge levels, exhibition statistics and device save/resume. Open **Matches → Play 3D match** with a saved XI. Phone landscape uses controls over the pitch; portrait remains available.
+The latest candidate is on `feature/browser-release-polish`. Open `/games/football` for an anonymous 11 v 11 quick match or finishing drill. It has animated skinned players, analogue/keyboard/controller inputs, four cameras, first-touch and first-time controls, coordinated team movement, difficulty choices and device save/resume. Signed-in players can also open **Matches → Play 3D match** with their saved XI.
+
+This increment adds adaptive graphics with measured device performance reports and separate throw-in, corner and goal-kick flows. See [release polish, verification and limits](docs/football-browser-quality/RELEASE_POLISH.md). Phone landscape uses controls over the pitch; portrait remains available.
 
 Existing authentication, squad details, manager lineups, fixtures, standings, transfers, Ludo and campaigns are preserved. Live exhibition scores remain local and do not change league standings. EA SPORTS FC's public gameplay notes are a design reference; RWG uses its own interface and CC0 character/animation sources.
 
@@ -21,21 +23,21 @@ Open **All games** at `/games`.
 | Game | What is included | Save location |
 | --- | --- | --- |
 | Founders League | Account and club, generated 18-player squad, player details, three formations, saved XI, ten-round league, simulated results, standings and fixed-price transfers | PostgreSQL, per account |
-| Football laboratory | One attacker versus a goalkeeper; 3D dribbling, sprint, shielding, feint and charged shooting | Session only |
-| 3D exhibition | Experimental 11 v 11 with the saved XI, keyboard/touch/gamepad inputs and three camera views | Session only; does not update the league |
+| Football laboratory | One attacker versus a goalkeeper; 3D dribbling, sprint, shielding, feint and charged shooting | Device checkpoint, separate from full matches |
+| 3D exhibition / quick play | 11 v 11, club XI or anonymous original clubs, three formations, first touches, coordinated support/defending, four cameras and set pieces | Device checkpoint per club/mode or quick-play formation; does not update the league |
 | Jack & Rose: Lost Signals | Three original island-rescue missions, two characters with different abilities, puzzles, storm pressure, victory/defeat and replay | This browser, `rwog.adventure.v1` |
 | Standards of Rome | Three fictional frontier battles, legionaries/archers/cavalry, movement, attacks, recruitment, enemy turns, fort defence and replay | This browser, `rwog.rome.v1` |
 | Ludo | Local 2–4 player game, captures, safe squares, exact finish, winner and rematch | This browser |
 
-Adventure and Roman tactics require no account. Football club features require registration/login. Online multiplayer, purchases, cloud campaign saves and commercial-grade football animation are not included.
+Quick-play football, Adventure and Roman tactics require no account. Football club features require registration/login. Online multiplayer, purchases, cloud campaign saves and commercial-grade football animation are not included.
 
 ## Run locally
 
-Use Node 20+ and npm 10+, with Docker Desktop running. From an existing checkout, stop the development server with **Control+C** and wait for the terminal prompt before entering Git commands.
+Use Node 24 and npm 10+, with Docker Desktop running. From an existing checkout, stop the development server with **Control+C** and wait for the terminal prompt before entering Git commands.
 
 ```bash
 git fetch origin
-git switch feature/football-browser-quality
+git switch feature/browser-release-polish
 npm ci
 ```
 
@@ -94,6 +96,11 @@ npm run test:ludo:browser
 npm run test:arcade:browser
 npm run test:3d:browser
 npm run test:football-quality:browser
+npm run test:football-production:browser
+npm run test:football-control:browser
+npm run test:football-quickplay:browser
+npm run test:football-visual:browser
+npm run test:football-release:browser
 npm run test:campaigns:browser
 ```
 

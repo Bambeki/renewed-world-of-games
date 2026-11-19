@@ -10,6 +10,15 @@ Use a local/test deployment. Start at `/games`. Allow approximately 10–15 minu
 4. Resume an existing local campaign or use its confirmed Restart button. Refresh intentionally preserves progress.
 5. Keep screenshots of each game and the latest verification report as a fallback. Never reset the database to restart a demo.
 
+## Live football first: 3–4 minutes
+
+- Open `/games/football`. No account is required. Choose a formation, then **Play quick match → Kick off**.
+- Use WASD/arrows (or the on-screen stick) to dribble, P to pass, Shift to sprint, F to shield, Q to feint, and hold/release Space to shoot. C switches when defending; J tackles.
+- Show teammates offering passing angles and running into space. Receive a pass, turn and shoot. Use **Practice finishing** first if rehearsing these controls.
+- When the ball goes out, show the separate throw-in/corner/goal-kick notice. On your restart, hold a direction to highlight a receiver and press Pass after setup; wait for an automatic delivery if desired.
+- Pause, open **Performance on this device**, and download the last active sample. Judge the actual demonstration computer; do not advertise a frame rate measured on CI software rendering.
+- Close, reopen and select **Resume saved match**. The exhibition remains separate from the manager season.
+
 ## Football manager: 3 minutes
 
 - Open Founders League and show the club dashboard.

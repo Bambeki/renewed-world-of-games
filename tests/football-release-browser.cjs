@@ -26,12 +26,17 @@ const {chromium,expect}=require('@playwright/test'),fs=require('node:fs');
   await page.goto(base+'/games/football');await open(page);
   await region(page).getByRole('button',{name:'Kick off',exact:true}).click();
   await expect(controls(page)).toHaveAttribute('data-phase','playing',{timeout:30000});
+  // Ensure active play has advanced beyond kickoff before testing the save.
+  const before=Number(await controls(page).getAttribute('data-controlled-x'));
+  await controls(page).focus();await page.keyboard.down('d');
+  await expect.poll(async()=>Number(await controls(page).getAttribute('data-controlled-x')),{timeout:10000}).toBeGreaterThan(before+.2);
+  await page.keyboard.up('d');
   await region(page).getByText('Performance on this device',{exact:true}).click();
   const reportButton=region(page).getByRole('button',{name:'Download performance report',exact:true});
   await expect(reportButton).toBeVisible({timeout:45000});
   await region(page).getByRole('button',{name:'Pause 3D match',exact:true}).click();
   const sample=await region(page).getByLabel('Last active performance sample',{exact:true}).innerText();
-  await page.waitForTimeout(300);await expect(region(page).getByLabel('Last active performance sample',{exact:true})).toHaveText(sample);
+  await page.waitForTimeout(300);await expect(region(page).getByLabel('Last active performance sample',{exact:true})).toHaveText(sample,{useInnerText:true});
   const pending=page.waitForEvent('download');await reportButton.click();const download=await pending;
   expect(download.suggestedFilename()).toBe('rwg-football-performance.json');
   const stream=await download.createReadStream(),chunks=[];for await(const chunk of stream)chunks.push(chunk);
@@ -95,6 +100,6 @@ const {chromium,expect}=require('@playwright/test'),fs=require('node:fs');
    }finally{await context.close()}
   }
   expect(errors).toEqual([]);expect(api).toEqual([]);
-  console.log('PASS browser release: real-time frame report and JSON download, paused metrics, two renderer reopen cycles, throw-in/corner/goal-kick awards and directional releases through ordinary controls, checkpoint saves; no API requests, page exceptions or 5xx responses.');
+  console.log('PASS browser release: real-time movement, frame report and JSON download, paused metrics, two renderer reopen cycles, throw-in/corner/goal-kick awards and directional releases through ordinary controls, checkpoint saves, full-time save and replay; no API requests, page exceptions or 5xx responses.');
  }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exit(1)});
