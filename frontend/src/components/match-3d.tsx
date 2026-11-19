@@ -9,6 +9,7 @@ import {
   stepFootball,
 } from "@/lib/football-3d";
 import type { CameraMode } from "@/lib/football-scene";
+import type { FootballPerformanceReport } from "@/lib/football-performance";
 import {
   decodeFootballSave, decodeFootballSettings, defaultFootballSettings,
   encodeFootballSave, type FootballSettings,
@@ -46,6 +47,7 @@ export default function Match3D({
   );
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
+  const [frameReport, setFrameReport] = useState<FootballPerformanceReport | null>(null);
   const [attempt, setAttempt] = useState(0);
   const host = useRef<HTMLDivElement>(null),
     viewport = useRef<HTMLDivElement>(null),
@@ -80,7 +82,10 @@ export default function Match3D({
     cameraRef.current = next.camera;
     setCamera(next.camera);
     current.current.difficulty = next.difficulty;
-    if (oldGraphics !== next.graphics) sceneRef.current?.setGraphics(next.graphics);
+    if (oldGraphics !== next.graphics) {
+      sceneRef.current?.setGraphics(next.graphics);
+      setFrameReport(null);
+    }
     try { localStorage.setItem("rwog.football.settings.v1", JSON.stringify(next)); } catch {}
   }
   useEffect(() => {
@@ -220,6 +225,22 @@ export default function Match3D({
     oscillator.start();
     oscillator.stop(context.currentTime + (goal ? 0.5 : 0.1));
   }
+  function downloadPerformance() {
+    if (!frameReport) return;
+    const report = {
+      version: 1, recordedAt: new Date().toISOString(),
+      browser: navigator.userAgent,
+      viewport: {width: window.innerWidth, height: window.innerHeight, devicePixelRatio: window.devicePixelRatio},
+      measurement: "Last active foreground RAF sample. Work time is CPU simulation plus render submission, not GPU time. No account or match-save data included.",
+      ...frameReport,
+    };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(report, null, 2)], {type: "application/json"}));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "rwg-football-performance.json";
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
   useEffect(() => {
     let stopped = false,
       frame = 0;
@@ -229,9 +250,11 @@ export default function Match3D({
     let previous = 0,
       accumulator = 0,
       lastHUD = 0,
+      lastReport = 0,
       eventId = 0;
     let lastPad: boolean[] = [];
     setReady(false);
+    setFrameReport(null);
     import("@/lib/football-scene")
       .then(async ({ createFootballScene }) => {
         if (stopped || !host.current) return;
@@ -260,9 +283,9 @@ export default function Match3D({
         }
         const tick = (now: number) => {
           if (stopped || !scene) return;
-          const dt = previous
-            ? Math.max(0, Math.min((now - previous) / 1000, 0.1))
-            : 0;
+          const workStart = performance.now(), wasRunning = runningRef.current;
+          const frameSeconds = previous ? Math.max(0, (now - previous) / 1000) : 0;
+          const dt = Math.min(frameSeconds, 0.1);
           previous = now;
           if (runningRef.current) {
             let pad: Gamepad | null = null;
@@ -330,6 +353,8 @@ export default function Match3D({
             if (current.current.phase === "fulltime") {
               runningRef.current = false;
               setRunning(false);
+              clear();
+              saveCheckpoint();
             }
           } else accumulator = 0;
           if (current.current.eventId !== eventId) {
@@ -346,6 +371,11 @@ export default function Match3D({
             dt,
             runningRef.current,
           );
+          scene.recordPerformance(frameSeconds, performance.now() - workStart, wasRunning && runningRef.current);
+          if (now - lastReport >= 1000) {
+            setFrameReport(scene.getPerformance());
+            lastReport = now;
+          }
           if (now - lastHUD > 100) {
             setSnapshot({ ...current.current });
             lastHUD = now;
@@ -552,6 +582,9 @@ export default function Match3D({
         data-controlled-z={selected.z.toFixed(2)}
         data-charge={snapshot.charge.toFixed(2)}
         data-phase={snapshot.phase}
+        data-restart={snapshot.restart?.kind ?? ""}
+        data-restart-team={snapshot.restart?.team ?? ""}
+        data-restart-target={snapshot.restart?.target ?? ""}
         data-shots={snapshot.shots[0]}
         data-selected={snapshot.selected}
         data-ball-owner={snapshot.ball.owner ?? "loose"}
@@ -612,6 +645,12 @@ export default function Match3D({
           <b data-testid="3d-clock">{minute}′ <small>{snapshot.phase === "fulltime" ? "FT" : running ? "LIVE" : "PAUSED"}</small></b>
         </div>
         <div className={styles.broadcastMark}>RWG <span>LIVE</span><small>{training ? "TRAINING" : "EXHIBITION"}</small></div>
+        {ready && running && snapshot.phase === "restart" && snapshot.restart && (
+          <div className={styles.restartBanner} role="status" aria-label="Restart instructions">
+            <strong>{snapshot.restart.kind === "throw-in" ? "THROW-IN" : snapshot.restart.kind === "corner" ? "CORNER" : "GOAL KICK"}</strong>
+            <span>{snapshot.restart.team === 0 ? snapshot.phaseTime > 2 ? "Your restart · Getting ready…" : "Your restart · Hold direction to aim, then Pass" : "Visitors restart · Cover the receiver"}</span>
+          </div>
+        )}
         {ready && (
           <svg
             className={styles.minimap}
@@ -755,6 +794,26 @@ export default function Match3D({
           When defending, switch to press the carrier while teammates cover
           the route to goal and track runners.
         </p>
+        <p>
+          Throw-ins, corners and goal kicks go to the correct side. Hold a
+          direction to choose the highlighted receiver, then press Pass after
+          the short setup. A delivery is taken automatically if you wait.
+          Training resets to another finishing attempt when the ball goes out.
+        </p>
+      </details>
+      <details className={styles.performance}>
+        <summary>Performance on this device</summary>
+        <p>Automatic graphics adapts the picture to keep controls responsive. All 22 players keep the same simulation; off-screen animation work is reduced.</p>
+        {frameReport ? <>
+          <dl aria-label="Last active performance sample">
+            <div><dt>Frame rate</dt><dd>{frameReport.fps} FPS</dd></div>
+            <div><dt>95% of frames within</dt><dd>{frameReport.p95FrameMs} ms</dd></div>
+            <div><dt>Drawing resolution</dt><dd>{frameReport.width} × {frameReport.height}</dd></div>
+            <div><dt>Active sample</dt><dd>{frameReport.seconds} seconds · {frameReport.frames} frames</dd></div>
+          </dl>
+          <p>Last active sample in this browser. Pausing keeps the last result. Results on other devices will differ.</p>
+          <button className="secondary" onClick={downloadPerformance}>Download performance report</button>
+        </> : <p>Play for a few seconds to measure this session. Paused and background time are excluded.</p>}
       </details>
       <div className={styles.touch} aria-label="3D touch controls">
         <div className={styles.stickGroup}>

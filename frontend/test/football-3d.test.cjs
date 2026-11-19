@@ -241,7 +241,7 @@ test("a controlled dribble crossing the touchline awards the opposition a restar
   s.players[9].z = 33;
   s.players[9].touchClock = 0.2;
   s.ball.x = 0;
-  s.ball.z = 34.1;
+  s.ball.z = 34.3;
   s.ball.vz = 1;
   s.ball.owner = 9;
   s.ball.lastTouch = 0;

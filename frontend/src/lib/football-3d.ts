@@ -8,6 +8,7 @@ export type Athlete = {
   shielding?: boolean;
   decisionClock?: number;
   save?: number;
+  throwing?: number;
   x: number;
   z: number;
   vx: number;
@@ -39,7 +40,9 @@ export type FootballInput = {
   skill: boolean;
   switch: boolean;
 };
+export type FootballRestartKind = "throw-in" | "corner" | "goal-kick";
 export type FootballState = {
+  restart?: {kind: FootballRestartKind; team: 0 | 1; taker: number; x: number; z: number; target?: number};
   training?: boolean;
   difficulty?: "casual" | "club" | "elite";
   passes?: [number, number];
@@ -66,6 +69,7 @@ export type FootballState = {
     lastTouch: 0 | 1;
     cooldown: number;
     releasedBy?: number;
+    restartKind?: FootballRestartKind;
   };
   selected: number;
   score: [number, number];
@@ -236,6 +240,7 @@ function kickoff(s: FootballState, team: 0 | 1) {
   s.passTarget = undefined;
   s.passTeam = undefined;
   s.actionBuffer = undefined;
+  s.restart = undefined;
 }
 function nearest(s: FootballState, team: number, exclude = -1) {
   const candidates = s.players
@@ -421,6 +426,7 @@ function kick(
   b.vy = loft;
   b.owner = null;
   b.releasedBy = index;
+  b.restartKind = undefined;
   s.passTarget = undefined;
   s.passTeam = undefined;
   s.actionBuffer = undefined;
@@ -428,6 +434,86 @@ function kick(
   b.cooldown = 0.23;
   p.kick = 0.4;
   s.keeperHold = 0;
+}
+
+function restartTarget(s: FootballState, input: FootballInput) {
+  const r = s.restart!, direction = r.team === 0 ? 1 : -1;
+  const aimed = r.team === 0 && Math.hypot(input.x, input.z) > 0.15;
+  const aimX = aimed ? input.x : r.kind === "throw-in" ? direction * 0.35 : direction;
+  const aimZ = aimed ? input.z : -Math.sign(r.z) * (r.kind === "corner" ? 2 : 0.8);
+  const length = Math.hypot(aimX, aimZ) || 1;
+  return s.players.map((p, i) => {
+    const dx = p.x - s.ball.x, dz = p.z - s.ball.z, distance = Math.hypot(dx, dz);
+    const angle = (dx * aimX + dz * aimZ) / ((distance || 1) * length);
+    return {p, i, score: angle * 20 - distance * 0.18 + Math.min(4, laneClearance(s, s.players[r.taker], p))};
+  }).filter(({p, i}) => !p.inactive && !p.keeper && p.team === r.team && i !== r.taker)
+    .sort((a, b) => b.score - a.score || a.i - b.i)[0]?.i;
+}
+
+function awardRestart(s: FootballState, kind: FootballRestartKind, team: 0 | 1, end: number, x: number, z: number) {
+  if (s.training) {
+    kickoff(s, 0);
+    s.phase = "restart";
+    s.phaseTime = 1.2;
+    announce(s, "Ball out. Reset for the next finishing attempt.");
+    return;
+  }
+  const direction = team === 0 ? 1 : -1, side = z < 0 ? -1 : 1;
+  const b = s.ball;
+  b.x = kind === "throw-in" ? limit(x, -51.5, 51.5) : kind === "corner" ? end * 52.25 : end * 48;
+  b.z = kind === "throw-in" ? side * 34 : kind === "corner" ? side * 33.75 : side * 5;
+  const taker = kind === "goal-kick" ? (team === 0 ? 0 : 11) : nearest(s, team);
+  s.restart = {kind, team, taker, x: b.x, z: b.z};
+  s.restartTeam = team;
+  s.phase = "restart";
+  s.phaseTime = 2.4;
+  s.charge = 0;
+  s.actionBuffer = undefined;
+  s.passTarget = undefined;
+  s.passTeam = undefined;
+  s.keeperHold = 0;
+  s.players.forEach((p, i) => {
+    p.vx = p.vz = 0;
+    p.kick = p.tackle = p.skill = 0;
+    p.pressure = p.receiving = p.throwing = 0;
+    if (i === taker) return;
+    if (p.team !== team) {
+      if (kind === "throw-in" && dist(p, b) < 2.5) p.z = b.z - side * 3;
+      if (kind === "corner" && dist(p, b) < 10.2) {p.x = b.x - end * 10.5; p.z = b.z - side * 3;}
+      if (kind === "goal-kick" && p.x * end > 35.5 && Math.abs(p.z) < 20.5) p.x = end * 35;
+    } else if (dist(p, b) < 1.5) {p.x -= end * 2; p.z -= side * 2;}
+    p.x = limit(p.x, -51.5, 51.5);
+    p.z = limit(p.z, -33.5, 33.5);
+  });
+  const p = s.players[taker];
+  p.x = kind === "throw-in" ? b.x : b.x - direction * 0.5;
+  p.z = kind === "throw-in" ? side * 34.15 : b.z;
+  p.facing = Math.atan2(kind === "throw-in" ? 0 : direction, kind === "throw-in" ? -side : 0);
+  Object.assign(b, {y: kind === "throw-in" ? 1.95 : 0.22, owner: taker, lastTouch: team,
+    vx: 0, vy: 0, vz: 0, cooldown: 1.3, releasedBy: undefined, restartKind: undefined});
+  if (team === 0 && !p.keeper) s.selected = taker;
+  else if (s.players[s.selected].keeper) s.selected = nearest(s, 0);
+  s.restart.target = restartTarget(s, neutralInput());
+  const label = kind === "throw-in" ? "Throw-in" : kind === "corner" ? "Corner" : "Goal kick";
+  announce(s, `${label} — ${team === 0 ? "Green" : "Visitors"} possession. ${team === 0 ? "Aim and press Pass to take it, or wait for the automatic delivery." : "Organise your defence."}`);
+}
+
+function takeRestart(s: FootballState) {
+  const r = s.restart!, target = r.target;
+  const destination = target === undefined ? {x: 0, z: 0} : s.players[target];
+  const distance = dist(s.ball, destination);
+  const loft = r.kind === "throw-in" ? 2.4 : r.kind === "corner" ? 7.5 : 4.5;
+  const flightTime = r.kind === "throw-in" ? 0.9 : r.kind === "corner" ? 1.55 : 0.95;
+  kick(s, r.taker, destination.x, destination.z, limit(distance / flightTime, 9, 34), loft);
+  s.ball.restartKind = r.kind;
+  if (r.kind === "throw-in") {s.players[r.taker].kick = 0; s.players[r.taker].throwing = 0.5;}
+  if (target !== undefined) {
+    beginPass(s, target);
+    if (r.team === 0) s.selected = target;
+  }
+  s.restart = undefined;
+  s.phase = "playing";
+  announce(s, r.kind === "throw-in" ? "Throw-in taken. Meet the ball." : r.kind === "corner" ? "Corner delivered into play." : "Goal kick taken. Build from the back.");
 }
 export function stepFootball(
   old: FootballState,
@@ -447,6 +533,7 @@ export function stepFootball(
     passes: [...(old.passes ?? [0, 0])],
     completedPasses: [...(old.completedPasses ?? [0, 0])],
     actionBuffer: old.actionBuffer ? { ...old.actionBuffer } : undefined,
+    restart: old.restart ? {...old.restart} : undefined,
   };
   const b = s.ball;
   s.players.forEach((p) => {
@@ -456,12 +543,18 @@ export function stepFootball(
     p.receiving = Math.max(0, (p.receiving ?? 0) - dt);
     p.decisionClock = Math.max(0, (p.decisionClock ?? 0) - dt);
     p.save = Math.max(0, (p.save ?? 0) - dt);
+    p.throwing = Math.max(0, (p.throwing ?? 0) - dt);
     p.shielding = false;
   });
   if (s.phase !== "playing") {
     s.actionBuffer = undefined;
     s.charge = 0;
     s.phaseTime -= dt;
+    if (s.phase === "restart" && s.restart) {
+      s.restart.target = restartTarget(s, input);
+      if (s.phaseTime <= 0 || (s.restart.team === 0 && s.phaseTime < 2 && (input.pass || input.through || input.lob))) takeRestart(s);
+      return s;
+    }
     if (s.phaseTime <= 0) {
       if (s.phase === "goal") kickoff(s, s.restartTeam);
       s.phase = "playing";
@@ -632,7 +725,7 @@ export function stepFootball(
       if (actionInput.shoot) {
         const power = limit(s.charge, 0.18, 1);
         const targetZ = limit(owner.z * 0.22 + actionInput.z * 3.5, -3.2, 3.2);
-        kick(s, b.owner, 54, targetZ, 20 + power * 13, power > 0.8 ? 3.4 : 1.1);
+        kick(s, b.owner, 52.5, targetZ, 20 + power * 13, power > 0.8 ? 3.4 : 1.1);
         s.shots[0]++;
         s.charge = 0;
         announce(s, "Shot on goal!");
@@ -685,7 +778,7 @@ export function stepFootball(
       Math.abs(owner.z) < 18 &&
       b.cooldown === 0
     ) {
-      kick(s, b.owner, -54, Math.sin(s.elapsed * 1.7) * 2.8, 25, 1.4);
+      kick(s, b.owner, -52.5, Math.sin(s.elapsed * 1.7) * 2.8, 25, 1.4);
       s.shots[1]++;
       announce(s, "The visitors shoot. The keeper sets himself.");
     } else if (owner.team === 1 && b.cooldown === 0 && owner.decisionClock === 0) {
@@ -815,8 +908,8 @@ export function stepFootball(
       b.vx *= drag;
       b.vz *= drag;
     }
-    {
-      const eligible = (i: number) => i !== b.releasedBy || b.cooldown === 0;
+    if (Math.abs(b.x) <= 52.72 && Math.abs(b.z) <= 34.22) {
+      const eligible = (i: number) => i !== b.releasedBy || (!b.restartKind && b.cooldown === 0);
       const keeper = s.players.findIndex(
         (p, i) =>
           !p.inactive &&
@@ -844,6 +937,7 @@ export function stepFootball(
         s.passTarget = undefined;
         s.passTeam = undefined;
         b.owner = catcher;
+        b.restartKind = undefined;
         const receiver = s.players[catcher];
         if (catcher !== s.selected) s.charge = 0;
         receiver.touchClock = 0.16;
@@ -883,15 +977,27 @@ export function stepFootball(
     }
   }
   // A dribble crossing a line is out too, even during a control window.
-  if (Math.abs(b.x) > 52.5 || Math.abs(b.z) > 34) {
+  if (Math.abs(b.x) > 52.72 || Math.abs(b.z) > 34.22) {
     s.actionBuffer = undefined;
     s.charge = 0;
-    if (Math.abs(b.x) > 52.5 && Math.abs(b.z) < 3.66 && b.y < 2.44) {
+    // If a fast diagonal crosses both boundaries in one step, use the first
+    // line crossed rather than whichever check happens to run first.
+    const crossing = (before: number, after: number, bound: number) =>
+      Math.abs(after) > bound ? limit((Math.sign(after) * bound - before) / (after - before || 1), 0, 1) : Infinity;
+    const endTime = crossing(old.ball.x, b.x, 52.72), sideTime = crossing(old.ball.z, b.z, 34.22);
+    const goalLine = endTime <= sideTime;
+    const end = b.x > 0 ? 1 : -1, defending = end > 0 ? 1 : 0;
+    const x = old.ball.x + (b.x - old.ball.x) * Math.min(endTime, sideTime);
+    const z = old.ball.z + (b.z - old.ball.z) * Math.min(endTime, sideTime);
+    const y = old.ball.y + (b.y - old.ball.y) * Math.min(endTime, sideTime);
+    const directForbidden = b.restartKind === "throw-in" || (b.restartKind && b.lastTouch === defending);
+    if (goalLine && Math.abs(z) + 0.22 < 3.66 && y + 0.22 < 2.44 && !directForbidden) {
       const scorer = b.x > 0 ? 0 : 1;
       s.score[scorer]++;
       s.phase = "goal";
       s.phaseTime = 3;
       s.restartTeam = scorer === 0 ? 1 : 0;
+      s.restart = undefined;
       b.vx = 0;
       b.vz = 0;
       announce(
@@ -901,34 +1007,17 @@ export function stepFootball(
           : "Goal for the visitors. Regroup for kickoff.",
       );
     } else {
-      const restart = (s.training ? 0 : 1 - b.lastTouch) as 0 | 1;
-      b.x = limit(b.x, -47, 47);
-      b.z = limit(b.z, -32, 32);
-      const taker = nearest(s, restart);
-      s.players[taker].x = b.x;
-      s.players[taker].z = b.z;
-      b.owner = taker;
-      s.passTarget = undefined;
-      s.passTeam = undefined;
-      b.lastTouch = restart;
-      b.cooldown = 1.3;
-      b.y = 0.22;
-      b.vx = 0;
-      b.vy = 0;
-      b.vz = 0;
-      s.phase = "restart";
-      s.phaseTime = 1.2;
-      if (restart === 0) s.selected = taker;
-      announce(
-        s,
-        "Ball out. Possession restarts from the sideline / goal line.",
-      );
+      const kind = !goalLine ? "throw-in" : b.lastTouch === defending ? "corner" : "goal-kick";
+      const team = (kind === "goal-kick" ? defending : 1 - b.lastTouch) as 0 | 1;
+      awardRestart(s, kind, team, end, x, z);
     }
   }
   // Defensive clamping also covers body separation at field edges.
-  s.players.forEach((p) => {
-    p.x = limit(p.x, -51.5, 51.5);
-    p.z = limit(p.z, -33.5, 33.5);
+  s.players.forEach((p, i) => {
+    if (s.restart?.taker !== i) {
+      p.x = limit(p.x, -51.5, 51.5);
+      p.z = limit(p.z, -33.5, 33.5);
+    }
   });
   return s;
 }

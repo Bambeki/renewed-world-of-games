@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, develop, feature/investor-demo-mvp, feature/ludo-local, feature/football-3d, feature/release-candidate, feature/football-browser-quality]
+    branches: [main, develop, feature/investor-demo-mvp, feature/ludo-local, feature/football-3d, feature/release-candidate, feature/football-browser-quality, feature/browser-release-polish]
   pull_request:
-    branches: [main, develop, feature/investor-demo-mvp, feature/ludo-local, feature/football-3d, feature/release-candidate]
+    branches: [main, develop, feature/investor-demo-mvp, feature/ludo-local, feature/football-3d, feature/release-candidate, feature/football-browser-quality]
 
 jobs:
   check:
@@ -40,12 +40,13 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
+      - name: Runtime dependency audit
+        run: |
+          set -o pipefail
+          npm audit --omit=dev --json | tee /tmp/rwg-runtime-audit.json
       - run: npm run build -w frontend
       - run: npx playwright install --with-deps chromium
-      - name: Verify API and browser journeys on PostgreSQL
-        env:
-          CAMPAIGN_SCREENSHOTS: /tmp/rwog-campaign-screenshots
-          FOOTBALL_VISUAL_SCREENSHOTS: /tmp/rwog-campaign-screenshots
+      - name: Start test servers and verify the API on PostgreSQL
         run: |
           mkdir -p /tmp/rwog-campaign-screenshots
           npm run start -w backend > /tmp/rwog-api.log 2>&1 &
@@ -55,6 +56,20 @@ jobs:
             sleep 1
           done
           npm run test:integration
+      - name: Rehearse backup and restore on a separate disposable database
+        env:
+          RESTORE_REPORT: /tmp/rwog-campaign-screenshots/backup-restore.json
+          PG_TOOLS_CONTAINER: ${{ job.services.postgres.id }}
+        run: node tests/backup-restore.cjs
+      - name: Verify football release controls and measurements
+        env:
+          FOOTBALL_VISUAL_SCREENSHOTS: /tmp/rwog-campaign-screenshots
+        run: npm run test:football-release:browser
+      - name: Verify all existing browser journeys
+        env:
+          CAMPAIGN_SCREENSHOTS: /tmp/rwog-campaign-screenshots
+          FOOTBALL_VISUAL_SCREENSHOTS: /tmp/rwog-campaign-screenshots
+        run: |
           npm run test:football-quickplay:browser
           npm run test:browser
           npm run test:ludo:browser
@@ -105,9 +120,6 @@ jobs:
             sleep 1
           done
           CONTAINER_WEB_URL=https://localhost:4443 node tests/production-container-browser.cjs
-      - name: Runtime dependency audit
-        if: ${{ !cancelled() }}
-        run: npm audit --omit=dev --json | tee /tmp/rwg-runtime-audit.json
       - name: Browser screenshots
         if: always()
         uses: actions/upload-artifact@v4

@@ -50,7 +50,9 @@ export function decodeFootballSave(raw: string | null, signature: string): Saved
     if (!b || !finite(b.x, -60, 60) || !finite(b.z, -40, 40) || !finite(b.y, 0, 50)
       || !finite(b.vx, -100, 100) || !finite(b.vz, -100, 100) || !finite(b.vy, -100, 100)
       || !finite(b.cooldown, 0, 10) || ![0, 1].includes(b.lastTouch)
-      || (b.owner !== null && !index(b.owner)) || (b.releasedBy !== undefined && !index(b.releasedBy))) return null;
+      || (b.owner !== null && !index(b.owner)) || (b.releasedBy !== undefined && !index(b.releasedBy))
+      || (b.restartKind !== undefined && (!["throw-in", "corner", "goal-kick"].includes(b.restartKind)
+        || !index(b.releasedBy) || b.owner !== null || s.players[b.releasedBy!]?.team !== b.lastTouch))) return null;
     for (let i = 0; i < s.players.length; i++) {
       const p = s.players[i];
       if (!p || p.team !== (i < 11 ? 0 : 1) || p.keeper !== (i % 11 === 0)
@@ -61,12 +63,20 @@ export function decodeFootballSave(raw: string | null, signature: string): Saved
         || ![p.kick, p.tackle, p.skill].every(n => finite(n, 0, 10))
         || (p.inactive !== undefined && typeof p.inactive !== "boolean")
         || (p.shielding !== undefined && typeof p.shielding !== "boolean")
-        || [p.gait, p.touchClock, p.receiving, p.pressure, p.decisionClock, p.save].some(n => n !== undefined && !finite(n, 0, 1e7))
+        || [p.gait, p.touchClock, p.receiving, p.pressure, p.decisionClock, p.save, p.throwing].some(n => n !== undefined && !finite(n, 0, 1e7))
         || Boolean(p.inactive) !== (Boolean(s.training) && i !== 9 && i !== 11)) return null;
     }
     if (s.players[s.selected].inactive || s.players[s.selected].keeper
       || (b.owner !== null && s.players[b.owner].inactive)
       || (s.passTarget !== undefined && s.players[s.passTarget].inactive)) return null;
+    const r = s.restart;
+    if (r !== undefined && (!r || Array.isArray(r) || s.phase !== "restart" || s.training
+      || !["throw-in", "corner", "goal-kick"].includes(r.kind) || ![0, 1].includes(r.team)
+      || !index(r.taker) || s.players[r.taker].inactive || s.players[r.taker].team !== r.team
+      || s.players[r.taker].keeper !== (r.kind === "goal-kick") || b.owner !== r.taker || s.restartTeam !== r.team
+      || !finite(r.x, -52.5, 52.5) || !finite(r.z, -34, 34)
+      || (r.target !== undefined && (!index(r.target) || s.players[r.target].inactive
+        || s.players[r.target].keeper || s.players[r.target].team !== r.team || r.target === r.taker)))) return null;
     const queued = s.actionBuffer;
     if (queued !== undefined && (!queued || Array.isArray(queued)
       || s.phase !== "playing" || queued.player !== s.selected

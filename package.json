@@ -33,7 +33,8 @@
     "test:football-production:browser": "node tests/football-production-browser.cjs",
     "test:football-control:browser": "node tests/football-control-browser.cjs",
     "test:football-quickplay:browser": "node tests/football-quickplay-browser.cjs",
-    "test:football-visual:browser": "node tests/football-visual-browser.cjs"
+    "test:football-visual:browser": "node tests/football-visual-browser.cjs",
+    "test:football-release:browser": "node tests/football-release-browser.cjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
@@ -49,7 +50,8 @@
       "multer": "2.5.0"
     },
     "@prisma/config": {
-      "deepmerge-ts": "8.0.2"
+      "deepmerge-ts": "8.0.2",
+      "effect": "3.22.1"
     },
     "next": {
       "postcss": "8.5.32"
