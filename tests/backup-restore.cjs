@@ -7,8 +7,12 @@ const restoredName=`rwog_restore_${process.pid}`,restoredUrl=new URL(sourceUrl);
 const source=new PrismaClient(),restored=new PrismaClient({datasources:{db:{url:restoredUrl.href}}});
 const directory=fs.mkdtempSync(path.join(os.tmpdir(),'rwog-restore-')),backup=path.join(directory,'backup.dump');
 const pgEnv={...process.env,PGHOST:sourceUrl.hostname,PGPORT:sourceUrl.port||'5432',PGUSER:decodeURIComponent(sourceUrl.username),PGPASSWORD:decodeURIComponent(sourceUrl.password),PGDATABASE:'rwog_test'};
-function run(command,args,env=pgEnv){
- const r=spawnSync(command,args,{env,encoding:'utf8',timeout:60000});
+function run(command,args,{input,output}={}){
+ // CI uses the database image's own client tools, avoiding host/server version drift.
+ const container=process.env.PG_TOOLS_CONTAINER;
+ const cmd=container?'docker':command;
+ const argv=container?['exec','-i','--env','PGUSER','--env','PGPASSWORD','--env','PGDATABASE',container,command,...args]:args;
+ const r=spawnSync(cmd,argv,{env:pgEnv,encoding:'utf8',timeout:60000,input,stdio:['pipe',output??'pipe','pipe']});
  if(r.error||r.status!==0)throw Error(`${command} failed (${r.status}): ${r.error?.message||r.stderr}`);
 }
 async function snapshot(client){
@@ -28,9 +32,10 @@ async function snapshot(client){
   const before=await snapshot(source);
   assert.ok(before.find(t=>t.table==='users')?.rows>0,'registered test users must exist');
   assert.ok(before.find(t=>t.table==='game_states')?.rows>0,'played manager states must exist');
-  run('pg_dump',['--format=custom','--no-owner','--file',backup]);
+  const archive=fs.openSync(backup,'w');
+  try{run('pg_dump',['--format=custom','--no-owner'],{output:archive})}finally{fs.closeSync(archive)}
   await source.$executeRawUnsafe(`CREATE DATABASE "${restoredName}"`);created=true;
-  run('pg_restore',['--no-owner','--no-privileges','--exit-on-error','--dbname',restoredName,backup]);
+  run('pg_restore',['--no-owner','--no-privileges','--exit-on-error','--dbname',restoredName],{input:fs.readFileSync(backup)});
   const after=await snapshot(restored);assert.deepEqual(after,before,'every restored table must match its source row count and complete row digest');
   const report={verifiedAt:new Date().toISOString(),elapsedMs:Date.now()-began,archiveBytes:fs.statSync(backup).size,tables:after,scope:'Disposable CI database. The deployment host and off-site backups require a separate rehearsal.'};
   if(process.env.RESTORE_REPORT)fs.writeFileSync(process.env.RESTORE_REPORT,JSON.stringify(report,null,2));

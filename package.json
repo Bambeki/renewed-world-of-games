@@ -50,7 +50,8 @@
       "multer": "2.5.0"
     },
     "@prisma/config": {
-      "deepmerge-ts": "8.0.2"
+      "deepmerge-ts": "8.0.2",
+      "effect": "3.22.1"
     },
     "next": {
       "postcss": "8.5.32"
